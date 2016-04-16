@@ -23,7 +23,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 include_directories(src include)
  
 add_executable(car src/main.cpp)
-target_link_libraries(car pthread wiringPi opencv)
+target_link_libraries(car pthread wiringPi opencv raspicam)
 
 # Testing
 #find_package(GTest REQUIRED)
