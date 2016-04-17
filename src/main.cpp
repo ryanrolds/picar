@@ -1,97 +1,84 @@
 #include "main.hpp"
+#include "detect.hpp"
+#include "control.hpp"
 
-const double FRAME_SCALE = 4.0d; // Adjust for performance
+#include <time.h>
+#include <iostream>
+#include <thread>
+#include <unistd.h>
+int setup();
 
-raspicam::RaspiCam_Cv camera;
-cv::Mat frame;
-cv::Mat frame1;
-cv::CascadeClassifier cascade, nestedCascade;
-vector<cv::Rect> faces
-cv::Rect r;
-Point center;
-double aspectRatio;
-Scalar color;
+int running = 1;
 
-const static Scalar colors[] = {
-  Scalar(255,0,0),
-  Scalar(255,128,0),
-  Scalar(255,255,0),
-  Scalar(0,255,0),
-  Scalar(0,128,255),
-  Scalar(0,255,255),
-  Scalar(0,0,255),
-  Scalar(255,0,255)
-};
-
-cv::Mat gray, smallImg;
-
-int main(int argc, const chat** argv) {
+int main(int argc, const char** argv) {
   int result;
-
+  int file;
+  cv::Rect target;
+    
   result = setup();
   if (result == -1) {
     return -1;
   }
 
-  // Start camera threads
-  // AI loop
-};
-
-int setup() {
-  if (!camera.open()) {
-    std::cout << "Capture from camera didn't work" << std::endl;
+  file = setupControl();
+  if (file == -1) {
+    std::cout << "Setup error" << std::endl;
     return -1;
-  } 
+  }
 
-  return 0;  
-}
+  // Start camera threads
+  std::thread videoThread (processCamera);
 
-void processCamera() {
-  std::cout << "Camera processing starting" << std::endl;
-
-  int result;
+  cv::Point center;
+  __s16 step = 1;
+  __u16 position = STEERING_CEN;
+  setSteering(file, STEERING_CEN);
+  setStop(file);
   
-  for(;;) {
-    camera.grab();
-    camera.retrieve(frame);
+  std::unique_lock<std::mutex> lock(detection_mutex);
+  lock.unlock();
 
-    if (frame.empty()) {
-      std::cout << "Emptry frame, exiting" << std::endl;
-      break;
+  struct timespec ts;
+  ts.tv_sec = 0;
+  ts.tv_nsec = 200000000L;
+    
+  // AI loop
+  for(;;) {
+    lock.lock();
+
+    if (hasDetection() == 1) {
+      target = getDetection();
+      resetDetection();
+      
+      lock.unlock();
+      
+      center.x = cvRound(target.x + target.width * 0.5);
+      center.y = cvRound(target.y + target.height * 0.5);
+
+      double offset = (center.x - 170 * 1.0d) * 0.25d;
+      //std::cout << "Detection center " << center.x << ", " << center.y << std::endl;
+      //std::cout << "Target " << target.y << ", " << target.y << " " <<  target.width << std::endl;
+      //std::cout << "Detection offset " << offset << std::endl;
+
+      position = STEERING_CEN + offset;
+
+      std::cout << "Position " << position << std::endl;
+      
+      setSteering(file, position);
+      setForward(file, 4000);      
+    } else {
+      lock.unlock();
+
+      setStop(file);
     }
 
-    frame1 = frame.clone();
-    cv::flip(frame1, frame1, 1); // Flip image
-    result = processFrame(frame1);
-  }
-};
-
-int processFrame(cv::Mat& frame) {
-  cvtColor(frame, gray, COLOR_BGR2GRAY);
-  double fx = 1 / FRAME_SCALE;
-  resize(, smallImg, Size(), fx, fx, INTER_LINEAR);
-  equalizeHist(smallImg, smallImg);
-  
-  t = (double) cvGetTickCount();
-  
-  // Detect
-  cascade.detectMultiScale(smallImg, faces, 1.1, 2, 0);
-
-  t = (double) cvGetTickCount() - t;
-  std::cout << "Detection time: " << t / (double) cvGetTickFrequency() * 1000 << std::endl;
-
-  for (size_t i = 0; i < faces.size(); i++) {
-    r = faces[i];
-    aspectRatio = (double) r.width / r.height;
-    center.x = cv::cvRound(r.x + r.width * 0.5);
-    center.y = cv::cvRound(r.y + r.height * 0.5);
-    radius = cv::cvRound((r.width + r.height) * 0.25);
-    color = colors[i % 8];
-    
-    circle(smallImg, center, radius, color, 3, 8, 0);
+    nanosleep(&ts, NULL);
   }
 
-  imshow("result", smallImg);
-  
+  setStop(file);  
+  cleanupControl(file);
+
   return 0;
 };
+
+int setup() {};

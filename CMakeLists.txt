@@ -1,9 +1,15 @@
 cmake_minimum_required(VERSION 2.8)
 
-project(qttp)
+list(APPEND CMAKE_MODULE_PATH "/usr/local/lib/cmake")
+link_directories(/usr/local/lib)
+
+project(car)
 
 # C++11
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
+find_package(raspicam REQUIRED)
+find_package(OpenCV REQUIRED)
 
 # Create bin and lib, dir, and logs
 make_directory(lib)
@@ -21,26 +27,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Search for 
 include_directories(src include)
+
  
 add_executable(car src/main.cpp)
-target_link_libraries(car pthread wiringPi opencv raspicam)
-
-# Testing
-#find_package(GTest REQUIRED)
-#include_directories(${GTEST_INCLUDE_DIRS})
-
-#add_executable(run_tests test/main.cpp src/logging.cpp
-#  test/connection_queue_test.cpp src/connection_queue.cpp
-#  test/connection_pool_test.cpp src/connection_pool.cpp
-#  test/connection_pool_test_threaded.cpp
-#  test/connection_worker_test.cpp
-#  test/qttp_test.cpp src/qttp.cpp
-#  src/connection_handler_epoll.cpp
-#  src/connection_worker.cpp
-#  src/work_queue.cpp
-#  src/job_handler.cpp)
-
-#target_link_libraries(run_tests ${GTEST_LIBRARIES} pthread curlpp curl log4cpp HTTPPARSER)
-
-#enable_testing()
-#add_test(NAME UnitTests COMMAND run_tests)
+target_link_libraries(car pthread wiringPi ${OpenCV_LIBS} ${raspicam_LIBS})
