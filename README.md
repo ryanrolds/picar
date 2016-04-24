@@ -11,15 +11,26 @@ Raspberry Pi + OpenCV driven car. Uses cascades trainned in cat detection to fol
 
 ## Setup
 
-Install: 
+Dependencies: 
 
 * https://sourceforge.net/projects/raspicam/files/
 * http://opencv.org/ (3.1.0)
 * http://wiringpi.com/download-and-install/
 
+## Build
+
+### cmake
+
+    $ mkdir build
+    $ cd build
+    $ cmake ..
+    $ make  
+
+### Old
+
     $ g++ -std=c++11 -I include/ src/main.cpp src/detect.cpp src/control.cpp -o bin/car -lraspicam -lraspicam_cv `pkg-config --cflags --libs opencv` -pthread -lwiringPi
 
-### GPIO
+## GPIO Setup
 
 Program uses i2c (2, 3) and OUPUT on 17, 27, 23, 24
 
