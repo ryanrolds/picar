@@ -13,7 +13,7 @@ int running = 1;
 int main(int argc, const char** argv) {
   int result;
   int file;
-  cv::Rect target;
+  Detection target;
     
   result = setup();
   if (result == -1) {
@@ -27,7 +27,7 @@ int main(int argc, const char** argv) {
   }
 
   // Start camera threads
-  std::thread videoThread (processCamera);
+  std::thread videoThread(processCamera);
 
   cv::Point center;
   __s16 step = 1;
@@ -40,7 +40,7 @@ int main(int argc, const char** argv) {
 
   struct timespec ts;
   ts.tv_sec = 0;
-  ts.tv_nsec = 200000000L;
+  ts.tv_nsec = 300000000L;
     
   // AI loop
   for(;;) {
@@ -52,15 +52,19 @@ int main(int argc, const char** argv) {
       
       lock.unlock();
       
-      center.x = cvRound(target.x + target.width * 0.5);
-      center.y = cvRound(target.y + target.height * 0.5);
+      center.x = cvRound(target.object.x + target.object.width * 0.5);
+      center.y = cvRound(target.object.y + target.object.height * 0.5);
 
-      double offset = (center.x - 170 * 1.0d) * 0.25d;
+      double areaWidth = target.width * 1.0d;
+      double steeringRange = 145.0d;
+      double adjust = steeringRange / areaWidth;
+      double offset = center.x * adjust;
       //std::cout << "Detection center " << center.x << ", " << center.y << std::endl;
-      //std::cout << "Target " << target.y << ", " << target.y << " " <<  target.width << std::endl;
+      //std::cout << "Target " << target.object.y << ", " << target.object.y << std::endl;
+      //std::cout << "Conversion " << target.width << ", " << steeringRange << ", " << adjust << std::endl;
       //std::cout << "Detection offset " << offset << std::endl;
 
-      position = STEERING_CEN + offset;
+      position = STEERING_MIN + offset;
 
       std::cout << "Position " << position << std::endl;
       

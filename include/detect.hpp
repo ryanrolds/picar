@@ -5,10 +5,16 @@
 
 extern std::mutex detection_mutex;
 
+struct Detection {
+  cv::Rect object;
+  int width;
+  int height;
+};
+
 void processCamera();
 int processFrame(cv::Mat&);
-cv::Rect getDetection();
-int setDetection(cv::Rect);
+Detection getDetection();
+int setDetection(cv::Rect, int, int);
 int clearDetection();
 int hasDetection();
 int resetDetection();

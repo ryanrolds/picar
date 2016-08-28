@@ -3,13 +3,13 @@
 #include <raspicam/raspicam_cv.h>
 #include <iostream>
 
-//const double FRAME_SCALE = 4; // Adjust for performance
-
 raspicam::RaspiCam_Cv camera;
 cv::CascadeClassifier cascade;
-cv::Rect detection;
+Detection detection;
 int has_detection;
 std::mutex detection_mutex;
+
+const double FRAME_SCALE = 3.0d;
 
 int setupCamera() {
   std::cout << "Camera processing starting" << std::endl;
@@ -76,7 +76,7 @@ int processFrame(cv::Mat& frame) {
   cv::Mat gray, smallImg;
   
   cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-  double fx = 1 / 4.0d;
+  double fx = 1 / FRAME_SCALE;
   cv::resize(gray, smallImg, cv::Size(), fx, fx, cv::INTER_LINEAR);
   cv::equalizeHist(smallImg, smallImg);
   int radius;
@@ -84,17 +84,17 @@ int processFrame(cv::Mat& frame) {
   //ticks = (double) cvGetTickCount();
   
   // Detect
-  cascade.detectMultiScale(smallImg, faces, 1.1, 2, 0
+  cascade.detectMultiScale(smallImg, faces, 1.4, 3, 0
 			   //|CASCADE_FIND_BIGGEST_OBJECT
 			   //|CASCADE_DO_ROUGH_SEARCH
-  			   |cv::CASCADE_SCALE_IMAGE, cv::Size(10, 10));
+  			   |cv::CASCADE_SCALE_IMAGE, cv::Size(30, 30));
 
   //ticks = (double) cvGetTickCount() - ticks;
   //std::cout << "Detection time: " << ticks / (double) (cvGetTickFrequency() * 1000) << std::endl;
 
   if (faces.size() > 0) {
     //std::cout << "Frame width: " << smallImg.cols << std::endl;
-    setDetection(faces[0]);
+    setDetection(faces[0], smallImg.cols, smallImg.rows);
   } else {
     //clearDetection();
   }
@@ -120,10 +120,10 @@ int processFrame(cv::Mat& frame) {
   return 0;
 };
 
-int setDetection(cv::Rect d) {
+int setDetection(cv::Rect d, int width, int height) {
   std::unique_lock<std::mutex> lock(detection_mutex); 
 
-  detection = d;
+  detection = {d, width, height};
   has_detection = 1;
 
   lock.unlock();
@@ -141,7 +141,7 @@ int clearDetection() {
   return 0;
 };
 
-cv::Rect getDetection() {
+Detection getDetection() {
   return detection;
 }
   
