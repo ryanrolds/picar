@@ -1,0 +1,39 @@
+#! /bin/sh
+# /etc/init.d/picar
+#
+
+### BEGIN INIT INFO
+# Provides:          picar
+# Required-Start:    $local_fs $network
+# Required-Stop:     $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: picar
+# Description:       Cat chasing robot
+### END INIT INFO
+
+gpio export 17 OUTPUT
+gpio export 27 OUTPUT
+gpio export 23 OUTPUT
+gpio export 24 OUTPUT
+
+# Carry out specific functions when asked to by the system
+case "$1" in
+  start)
+    echo "Starting script picar"
+    start-stop-daemon --start --oknodo --user pi --name picar --chdir /home/pi/repos/picar/build/bin/ \
+    		      --pidfile /var/run/picar.pid -m --startas /home/pi/repos/picar/build/bin/picar \
+		      --chuid pi --background --
+    ;;
+  stop)
+    echo "Stopping script picar"
+    start-stop-daemon --stop --oknodo --user pi --name picar \
+    		      --pidfile /var/run/picar.pid --retry 5
+    ;;
+  *)
+    echo "Usage: /etc/init.d/picar {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0

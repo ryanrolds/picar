@@ -115,7 +115,7 @@ int processFrame(cv::Mat& frame) {
     circle(smallImg, center, radius, color, 3, 8, 0);
   }
 
-  imshow("result", smallImg);
+  //imshow("result", smallImg);
   
   return 0;
 };

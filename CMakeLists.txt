@@ -15,17 +15,16 @@ make_directory(logs)
 
 file(COPY share/visionary.net_cat_cascade_web_LBP.xml DESTINATION bin/)
 
-
 # Set output dirs
 #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 #set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Car
-project(car)
+# Picar
+project(picar)
 
 find_package(raspicam REQUIRED)
 find_package(OpenCV REQUIRED)
  
-add_executable(car src/main.cpp src/detect.cpp src/control.cpp)
-target_link_libraries(car pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})
+add_executable(picar src/main.cpp src/detect.cpp src/control.cpp)
+target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})
