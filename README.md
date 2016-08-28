@@ -8,6 +8,14 @@ Raspberry Pi + OpenCV driven car. Uses cascades trainned in cat detection to fol
 * Raspberry Pi camera
 * Smart Car
 * Camera mount (see models)
+* IR Sensor mount (see models)
+
+## TODO
+
+* Get cmake working
+* Startup on boot
+* Integrate IR Obst. Sensor
+* Create behavior tree
 
 ## Setup
 
