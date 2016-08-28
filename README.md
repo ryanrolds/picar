@@ -12,7 +12,7 @@ Raspberry Pi + OpenCV driven car. Uses cascades trainned in cat detection to fol
 
 ## TODO
 
-* Get cmake working
+* Fix detection and steering
 * Startup on boot
 * Integrate IR Obst. Sensor
 * Create behavior tree
