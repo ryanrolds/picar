@@ -13,7 +13,7 @@ include_directories(include)
 make_directory(bin)
 make_directory(logs)
 
-file(COPY share/visionary.net_cat_cascade_web_LBP.xml DESTINATION bin/)
+file(COPY share/visionary.net_cat_cascade_web_LBP.xml DESTINATION share/picar)
 
 # Set output dirs
 #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -26,11 +26,13 @@ project(picar)
 #find_package(raspicam REQUIRED)
 #find_package(OpenCV REQUIRED)
  
-add_executable(brain src/brain.cpp)
-target_link_libraries(brain pthread)
+add_executable(picar-brain src/brain.cpp)
+target_link_libraries(picar-brain pthread)
 
-add_executable(car src/car.cpp)
-target_link_libraries(car pthread)
+add_executable(picar-car src/car.cpp)
+target_link_libraries(picar-car pthread)
 
 #add_executable(picar src/main.cpp src/detect.cpp src/control.cpp)
 #target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})
+
+install(TARGETS picar-brain picar-car DESTINATION bin)
