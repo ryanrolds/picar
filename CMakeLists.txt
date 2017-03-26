@@ -23,8 +23,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # Picar
 project(picar)
 
-find_package(raspicam REQUIRED)
-find_package(OpenCV REQUIRED)
+#find_package(raspicam REQUIRED)
+#find_package(OpenCV REQUIRED)
  
-add_executable(picar src/main.cpp src/detect.cpp src/control.cpp)
-target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})
+add_executable(brain src/brain.cpp)
+target_link_libraries(brain pthread)
+
+add_executable(car src/car.cpp)
+target_link_libraries(car pthread)
+
+#add_executable(picar src/main.cpp src/detect.cpp src/control.cpp)
+#target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})

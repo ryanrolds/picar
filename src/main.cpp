@@ -29,12 +29,13 @@ int main(int argc, const char** argv) {
   // Start camera threads
   std::thread videoThread(processCamera);
 
+  // Setup steering
   cv::Point center;
   __s16 step = 1;
   __u16 position = STEERING_CEN;
   setSteering(file, STEERING_CEN);
   setStop(file);
-  
+
   std::unique_lock<std::mutex> lock(detection_mutex);
   lock.unlock();
 
