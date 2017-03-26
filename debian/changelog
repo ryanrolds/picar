@@ -1,0 +1,5 @@
+picar (0.0.1-1) unstable; urgency=low
+
+  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+
+ -- Ryan R. Olds <ryanrolds@gmail.com>  Sun, 26 Mar 2017 02:26:43 -0400
