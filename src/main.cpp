@@ -24,7 +24,7 @@ int main(int argc, const char** argv) {
   
   // Start camera threads
   std::thread videoThread(processCamera);
- 
+
   std::unique_lock<std::mutex> lock(detection_mutex);
   lock.unlock();
 

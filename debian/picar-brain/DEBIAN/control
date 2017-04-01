@@ -1,0 +1,12 @@
+Package: picar-brain
+Source: picar
+Version: 0.0.1
+Architecture: amd64
+Maintainer: Ryan R. Olds <ryanrolds@gmail.com>
+Installed-Size: 44
+Depends: libc6 (>= 2.4), libgcc1 (>= 1:4.1.1), libstdc++6 (>= 4.4.0)
+Section: unknown
+Priority: optional
+Homepage: <insert the upstream URL, if relevant>
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>
