@@ -125,6 +125,10 @@ int setupControl() {
   pinMode(REAR_R_FORWARD, OUTPUT);
   pinMode(REAR_R_BACKWARD, OUTPUT);
 
+  // Set default control positions
+  setSteering(file, STEERING_CEN);
+  setStop(file);
+  
   std::cout << "All good!" << std::endl;
   
   return file;
@@ -146,7 +150,6 @@ void setForward(int file, __u16 speed) {
 
   __u16 left = speed;
   __u16 right = speed;
-
   
   digitalWrite(REAR_R_FORWARD, HIGH);
   digitalWrite(REAR_R_BACKWARD, LOW);

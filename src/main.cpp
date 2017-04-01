@@ -1,6 +1,7 @@
 #include "main.hpp"
 #include "detect.hpp"
 #include "control.hpp"
+#include "senses.hpp"
 
 #include <time.h>
 #include <iostream>
@@ -14,30 +15,22 @@ int main(int argc, const char** argv) {
   int result;
   int file;
   Detection target;
-    
-  result = setup();
-  if (result == -1) {
-    return -1;
-  }
 
-  file = setupControl();
+  // TODO remove file from main, push fd handling down into control
+  file = setup();
   if (file == -1) {
-    std::cout << "Setup error" << std::endl;
     return -1;
   }
-
+  
   // Start camera threads
   std::thread videoThread(processCamera);
-
-  cv::Point center;
-  __s16 step = 1;
-  __u16 position = STEERING_CEN;
-  setSteering(file, STEERING_CEN);
-  setStop(file);
-  
+ 
   std::unique_lock<std::mutex> lock(detection_mutex);
   lock.unlock();
 
+  cv::Point center;
+  //__s16 step = 1;
+  __u16 position = STEERING_CEN;
   struct timespec ts;
   ts.tv_sec = 0;
   ts.tv_nsec = 300000000L;
@@ -73,7 +66,14 @@ int main(int argc, const char** argv) {
     } else {
       lock.unlock();
 
-      setStop(file);
+      int obst = hasObstical();
+      std::cout << "Obst " << obst << std::endl;
+      if (obst == 0) {
+	setSteering(file, position);
+	setForward(file, 4000);
+      } else {
+	setStop(file);
+      }
     }
 
     nanosleep(&ts, NULL);
@@ -85,4 +85,20 @@ int main(int argc, const char** argv) {
   return 0;
 };
 
-int setup() {};
+int setup() {
+  // Prepare controls/outputs (wheels, steering)
+  int file = setupControl();
+  if (file == -1) {
+    std::cout << "Setup control error" << std::endl;
+    return -1;
+  }
+  
+  // Prepare senses/inputs
+  int result = setupSenses();
+  if (result == -1) {
+    std::cout << "Setup senses error" << std::endl;
+    return -1;
+  }
+  
+  return file;
+};

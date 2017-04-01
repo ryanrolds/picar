@@ -26,5 +26,5 @@ project(picar)
 find_package(raspicam REQUIRED)
 find_package(OpenCV REQUIRED)
  
-add_executable(picar src/main.cpp src/detect.cpp src/control.cpp)
+add_executable(picar src/main.cpp src/detect.cpp src/control.cpp src/senses.cpp)
 target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})
