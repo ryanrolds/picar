@@ -79,5 +79,6 @@ Program uses i2c (2, 3) and OUPUT on 17, 27, 23, 24
     $ gpio export 27 OUTPUT
     $ gpio export 23 OUTPUT
     $ gpio export 24 OUTPUT
-     
+    $ gpio export 22 INPUT
+
 ## Training

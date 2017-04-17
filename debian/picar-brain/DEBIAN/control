@@ -1,6 +1,6 @@
 Package: picar-brain
 Source: picar
-Version: 0.0.1
+Version: 0.0.2
 Architecture: amd64
 Maintainer: Ryan R. Olds <ryanrolds@gmail.com>
 Installed-Size: 44
