@@ -1,3 +1,9 @@
+picar (0.0.2) unstable; urgency=low
+
+  * Preparing for automation of deployments
+
+ -- Ryan R. Olds <ryanrolds@gmail.com>  Sun, 16 Apr 2017 18:53:51 -0700
+
 picar (0.0.1) unstable; urgency=low
 
   * Initial Release.
