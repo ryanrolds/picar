@@ -1,0 +1,11 @@
+[Unit]
+Description=Picar Car
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/picar-car
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
