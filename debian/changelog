@@ -1,3 +1,9 @@
+picar (0.0.3) unstable; urgency=low
+
+  * More merging
+
+ -- Ryan R. Olds <ryanrolds@gmail.com>  Sun, 16 Apr 2017 21:33:00 -0700
+
 picar (0.0.2) unstable; urgency=low
 
   * Preparing for automation of deployments
