@@ -1,9 +1,10 @@
 Package: picar-car
 Source: picar
 Version: 0.0.1
-Architecture: amd64
+Architecture: armhf
 Maintainer: Ryan R. Olds <ryanrolds@gmail.com>
-Installed-Size: 30
+Installed-Size: 40
+Depends: libc6 (>= 2.4), libgcc1 (>= 1:4.4.0), libstdc++6 (>= 4.4.0)
 Section: unknown
 Priority: optional
 Homepage: <insert the upstream URL, if relevant>
