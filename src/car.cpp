@@ -26,10 +26,13 @@
 //CommandReciver command;
 
 struct sockaddr_in discoverHost();
+bool running = true;
+unsigned sinlen = sizeof(struct sockaddr_in);
 
 static void sigint_catch(int signo) {
   std::cout << "Caught " << signo << std::endl;
-
+  running = false;
+  
   //command.stop();
   //video.stop();
 }
@@ -50,8 +53,29 @@ int main(int argc, const char** argv) {
     return EXIT_FAILURE;
   }
 
+  
+  // Setup connection brain
+  int sock = socket(AF_INET, SOCK_STREAM, 0);
+  if (sock < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }
+       
+  // Bind socket
+  int status = connect(sock, (struct sockaddr *)&server, sinlen);
+  if (status < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }
+
+  // Handshake
+         
+  while (running) {
+    // Write frame+sensor to brain
+
+    // Read control data    
+  }
+  
   // Start video+sensor sender thread
-  //video.start(server, );
+  //video.start(server);
 
   // Start command receiver thread
   //command.start();
@@ -65,15 +89,15 @@ int main(int argc, const char** argv) {
 }
 
 struct sockaddr_in discoverHost() {
-  int yes = 1;
-  unsigned sinlen = sizeof(struct sockaddr_in);
+  // Create UDP socket
+  int sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (sock < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }
 
   struct sockaddr_in sock_in;
   memset(&sock_in, 0, sinlen);
-
-  // Create UDP socket
-  int sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-
+  
   // All interfaces and get a random port
   sock_in.sin_addr.s_addr = htonl(INADDR_ANY);
   sock_in.sin_port = htons(0);
@@ -81,13 +105,20 @@ struct sockaddr_in discoverHost() {
 
   // Bind socket
   int status = bind(sock, (struct sockaddr *)&sock_in, sinlen);
-
+  if (status < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));    
+  }
+  
   status = getsockname(sock, (struct sockaddr *)&sock_in, &sinlen);
-  printf("Sock port %d\n", htons(sock_in.sin_port));
+  std::cout << "Sock port " <<  htons(sock_in.sin_port) << std::endl;
   
   int recvPort = sock_in.sin_port;
   
+  int yes = 1;
   status = setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &yes, sizeof(int));
+  if (status < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }
   
   // Prep broadcast udp socket
   const char *ip = BROADCASTIP;
@@ -100,21 +131,36 @@ struct sockaddr_in discoverHost() {
   int buflen = strlen(buffer);
   status = sendto(sock, buffer, buflen, 0, (struct sockaddr *)&sock_in, sinlen);
 
-  struct timeval read_timeout;
-  read_timeout.tv_sec = 30;
-  read_timeout.tv_usec = 0;
-  status = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &read_timeout, sizeof read_timeout); 
-
-  memset(buffer, 0, buflen);
-  
-  // Recieve new broadcasts
-  status = recvfrom(sock, buffer, buflen, 0, (struct sockaddr *)&sock_in, &sinlen);
-  if (status == -1) {
-    if (errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR) {
-      throw std::runtime_error("Error: " + std::string(strerror(errno)));
-    } else {
-      throw std::runtime_error("Error: discovery timed out");
+  int tries = 0;  
+  while(true) {
+    if (tries > 4) {
+      throw std::runtime_error("Error: discovery failed");
     }
+
+    std::cout << "Attempting discovery" << std::endl;
+    
+    struct timeval read_timeout;
+    read_timeout.tv_sec = 5;
+    read_timeout.tv_usec = 0;
+    status = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &read_timeout, sizeof read_timeout); 
+
+    memset(buffer, 0, buflen);
+  
+    // Recieve new broadcasts
+    status = recvfrom(sock, buffer, buflen, 0, (struct sockaddr *)&sock_in, &sinlen);
+    if (status == -1) {
+      if (errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR) {
+	throw std::runtime_error("Error: " + std::string(strerror(errno)));
+      }
+
+      std::cout << "Discovery timedout" << std::endl;
+
+      // Try again
+      tries++;
+      continue;
+    }
+
+    break; // Discovery successful
   }
 
   shutdown(sock, 2);

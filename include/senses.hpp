@@ -1,0 +1,3 @@
+
+int setupSenses();
+bool hasObstical();

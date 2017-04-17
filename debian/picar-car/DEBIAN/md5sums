@@ -1,4 +1,4 @@
-6676cae1841c9d5051b4e04334753a14  usr/share/doc/picar-car/README.Debian
-497d5b63645e6842c61624564c34e25a  usr/share/doc/picar-car/README.md
+7d405ab4c172004bb1b5a16f690980d8  lib/systemd/system/picar-car.service
+6aa1879f0ba12e4c16e07a9b6164bf99  usr/bin/picar-car
 6ec3dc51b31acff52e06b7856890de7b  usr/share/doc/picar-car/changelog.gz
 1e041a452abbebc8a2e664e2967791fc  usr/share/doc/picar-car/copyright
