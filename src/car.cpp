@@ -53,7 +53,6 @@ int main(int argc, const char** argv) {
     return EXIT_FAILURE;
   }
 
-  
   // Setup connection brain
   int sock = socket(AF_INET, SOCK_STREAM, 0);
   if (sock < 0) {
@@ -159,6 +158,8 @@ struct sockaddr_in discoverHost() {
       tries++;
       continue;
     }
+
+    
 
     break; // Discovery successful
   }

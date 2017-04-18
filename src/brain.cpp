@@ -5,6 +5,8 @@
 #include <errno.h>
 #include <cstring>
 #include <iostream>
+#include <thread>
+#include <vector>
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -18,6 +20,13 @@
 #define BROADCASTPORT 7492
 #define SERVERPORT 7493
 bool quit = false;
+unsigned sinlen = sizeof(struct sockaddr_in);  
+
+
+std::vector<std::thread> brains;
+
+int discoveryHost();
+int brainHost(int);
 
 static void sigint_catch(int signo) {
   std::cout << "Caught " << signo << std::endl;
@@ -28,8 +37,17 @@ int main(int argc, const char** argv) {
   if (signal(SIGINT, sigint_catch) == SIG_ERR) {
     return EXIT_FAILURE;
   }
+
+  // Start loop that will handle discovery
+  int result = discoveryHost();
+  // TODO should exit successfully
   
-  unsigned sinlen = sizeof(struct sockaddr_in);  
+  std::cout << "Exiting" << std::endl;
+
+  return EXIT_SUCCESS;
+}
+
+int discoveryHost() {
   struct sockaddr_in sock_in;
   memset(&sock_in, 0, sinlen);
 
@@ -76,19 +94,75 @@ int main(int argc, const char** argv) {
     }
 
     std::cout << buffer << std::endl;
-
-    // Send message back
     
+    // Send message back with port
     char buffer[MAXBUF];
     sprintf(buffer, "polo");
     int buflen = strlen(buffer);
-    status = sendto(sock, buffer, buflen, 0, (struct sockaddr *)&sock_in, sinlen);    
+    status = sendto(sock, buffer, buflen, 0, (struct sockaddr *)&sock_in, sinlen);
+
+    // Setup new socket for client 
+    struct sockaddr_in brain_sock_in;
+    memset(&brain_sock_in, 0, sinlen);
+    
+    int brain_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    brain_sock_in.sin_addr.s_addr = htonl(INADDR_ANY);
+    brain_sock_in.sin_port = 0;
+    brain_sock_in.sin_family = AF_INET;  
+
+    int status = bind(brain_sock, (struct sockaddr *)&brain_sock_in, sinlen);
+    printf("Bind Status = %d\n", status);
+
+    status = getsockname(brain_sock, (struct sockaddr *)&brain_sock_in, &sinlen);
+    printf("Sock port %d\n", htons(brain_sock_in.sin_port));
+
+    // Create thread and add to vector
+    // TODO zombie thread handling/cleanup
+    brains.push_back(std::thread(brainHost, brain_sock));
+
+    // Send new host port to client
+    status = sendto(sock, (struct sockaddr *)&sock_in.sin_port, sizeof(sock_in.sin_port),
+		    0, (struct sockaddr *)&sock_in, sinlen);
   }
   
   shutdown(sock, 2);
   close(sock);
-
-  std::cout << "Exiting" << std::endl;
-
-  return EXIT_SUCCESS;
 }
+
+int brainHost(int sock) {
+  struct sockaddr_in client_addr;
+  memset(&client_addr, 0, sinlen); 
+
+  listen(sock, 0);
+
+  std::cout << "blah" << std::endl;
+  
+  int client = accept(sock, (struct sockaddr *)&client_addr, &sinlen);
+  if (client < 0) {
+    // TODO error
+  }
+
+  char buffer[256];
+  while (true) {
+    // Read
+    int bytes = read(client, buffer, 255);
+    if (bytes < 0) {
+      // TODO error
+    }
+
+    printf("Recieved %s", buffer);
+    
+    // Process
+    usleep(5000);
+    
+    // Acknowledge
+    sprintf(buffer, "cont");
+    int buflen = strlen(buffer);
+    int status = sendto(sock, buffer, buflen, 0, (struct sockaddr *)&client_addr, sinlen);
+    if (status < 0) {
+      // TODO error
+    }
+  }
+
+  // Done
+};
