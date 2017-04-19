@@ -1,3 +1,9 @@
+picar (0.0.4) unstable; urgency=low
+
+  * Handshake and mock data exchange 
+
+ -- Ryan R. Olds <ryanrolds@gmail.com>  Tue, 18 Apr 2017 19:37::00 -0700
+
 picar (0.0.3) unstable; urgency=low
 
   * More merging
