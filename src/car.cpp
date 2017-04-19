@@ -40,6 +40,15 @@ static void sigint_catch(int signo) {
 int main(int argc, const char** argv) {
   //video = new VideoSender();
   //command = new CommandReciver();
+
+  // Start video+sensor sender thread
+  //video.start(server);
+
+  // Start command receiver thread
+  //command.start();
+
+  //command.wait();
+  //video.wait();
   
   if (signal(SIGINT, sigint_catch) == SIG_ERR) {
     return EXIT_FAILURE;
@@ -53,6 +62,10 @@ int main(int argc, const char** argv) {
     return EXIT_FAILURE;
   }
 
+  std::cout << "Connecting... " << inet_ntoa(server.sin_addr) << ":" << htons(server.sin_port) << std::endl;
+
+  usleep(5);
+  
   // Setup connection brain
   int sock = socket(AF_INET, SOCK_STREAM, 0);
   if (sock < 0) {
@@ -65,23 +78,47 @@ int main(int argc, const char** argv) {
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
   }
 
-  // Handshake
-         
-  while (running) {
-    // Write frame+sensor to brain
+  std::cout << "Connected" << std::endl;
+  
+  char buffer[MAXBUF];
+  
+  memset(buffer, 0, MAXBUF);
+  sprintf(buffer, "v0.0.1");
 
-    // Read control data    
+  status = send(sock, buffer, strlen(buffer), 0);
+  if (status < 0) {
+    // TODO handle error
+  }
+
+  memset(buffer, 0, MAXBUF);
+  
+  // Recieve new broadcasts
+  status = recv(sock, buffer, MAXBUF, 0);
+  if (status < 0) {
+    // TODO handle error
   }
   
-  // Start video+sensor sender thread
-  //video.start(server);
+  while (running) {
+    // Write frame+sensor to brain
+    memset(buffer, 0, MAXBUF);
+    sprintf(buffer, "frame and sensors");    
+    status = send(sock, buffer, strlen(buffer), 0);
+    if (status < 0) {
+      // TODO handle error
+    }
 
-  // Start command receiver thread
-  //command.start();
+    // Read control data
+    memset(buffer, 0, MAXBUF);
+    status = recv(sock, buffer, MAXBUF, 0);
+    if (status < 0) {
+      // TODO handle error
+    }
 
-  //command.wait();
-  //video.wait();
-  
+    std::cout << "Recieved: " << buffer << std::endl;
+
+    sleep(5);
+  }
+    
   std::cout << "Exiting" << std::endl;
 
   return EXIT_SUCCESS;
@@ -130,6 +167,9 @@ struct sockaddr_in discoverHost() {
   int buflen = strlen(buffer);
   status = sendto(sock, buffer, buflen, 0, (struct sockaddr *)&sock_in, sinlen);
 
+  unsigned short host_port;
+  memset(&host_port, 0, sizeof(host_port));
+  
   int tries = 0;  
   while(true) {
     if (tries > 4) {
@@ -142,11 +182,9 @@ struct sockaddr_in discoverHost() {
     read_timeout.tv_sec = 5;
     read_timeout.tv_usec = 0;
     status = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &read_timeout, sizeof read_timeout); 
-
-    memset(buffer, 0, buflen);
-  
+    
     // Recieve new broadcasts
-    status = recvfrom(sock, buffer, buflen, 0, (struct sockaddr *)&sock_in, &sinlen);
+    status = recvfrom(sock, &host_port, sizeof(host_port), 0, (struct sockaddr *)&sock_in, &sinlen);
     if (status == -1) {
       if (errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR) {
 	throw std::runtime_error("Error: " + std::string(strerror(errno)));
@@ -158,17 +196,16 @@ struct sockaddr_in discoverHost() {
       tries++;
       continue;
     }
-
     
-
     break; // Discovery successful
   }
-
+    
   shutdown(sock, 2);
   close(sock);
+
+  sock_in.sin_port = host_port;
   
-  std::cout << "Got response from " << inet_ntoa(sock_in.sin_addr) << std::endl;
-  std::cout << buffer << std::endl;
+  std::cout << "Got response from " << inet_ntoa(sock_in.sin_addr) << ":" << htons(sock_in.sin_port) << std::endl;
   
   return sock_in;
 }

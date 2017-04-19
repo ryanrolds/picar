@@ -95,12 +95,6 @@ int discoveryHost() {
 
     std::cout << buffer << std::endl;
     
-    // Send message back with port
-    char buffer[MAXBUF];
-    sprintf(buffer, "polo");
-    int buflen = strlen(buffer);
-    status = sendto(sock, buffer, buflen, 0, (struct sockaddr *)&sock_in, sinlen);
-
     // Setup new socket for client 
     struct sockaddr_in brain_sock_in;
     memset(&brain_sock_in, 0, sinlen);
@@ -111,17 +105,19 @@ int discoveryHost() {
     brain_sock_in.sin_family = AF_INET;  
 
     int status = bind(brain_sock, (struct sockaddr *)&brain_sock_in, sinlen);
-    printf("Bind Status = %d\n", status);
-
+    printf("Brain bind status = %d\n", status);
+    
+    listen(brain_sock, 0);
+    
     status = getsockname(brain_sock, (struct sockaddr *)&brain_sock_in, &sinlen);
-    printf("Sock port %d\n", htons(brain_sock_in.sin_port));
+    printf("Brain sock port %d\n", htons(brain_sock_in.sin_port));
 
     // Create thread and add to vector
     // TODO zombie thread handling/cleanup
     brains.push_back(std::thread(brainHost, brain_sock));
 
     // Send new host port to client
-    status = sendto(sock, (struct sockaddr *)&sock_in.sin_port, sizeof(sock_in.sin_port),
+    status = sendto(sock, (struct sockaddr *)&brain_sock_in.sin_port, sizeof(brain_sock_in.sin_port),
 		    0, (struct sockaddr *)&sock_in, sinlen);
   }
   
@@ -133,8 +129,6 @@ int brainHost(int sock) {
   struct sockaddr_in client_addr;
   memset(&client_addr, 0, sinlen); 
 
-  listen(sock, 0);
-
   std::cout << "blah" << std::endl;
   
   int client = accept(sock, (struct sockaddr *)&client_addr, &sinlen);
@@ -142,23 +136,24 @@ int brainHost(int sock) {
     // TODO error
   }
 
-  char buffer[256];
+  char buffer[MAXBUF];
   while (true) {
     // Read
-    int bytes = read(client, buffer, 255);
+    memset(buffer, 0, MAXBUF);
+    int bytes = read(client, buffer, MAXBUF);
     if (bytes < 0) {
       // TODO error
     }
 
-    printf("Recieved %s", buffer);
+    std::cout << "Recieved %s" << buffer << std::endl;
     
     // Process
-    usleep(5000);
+    sleep(5);
     
     // Acknowledge
     sprintf(buffer, "cont");
     int buflen = strlen(buffer);
-    int status = sendto(sock, buffer, buflen, 0, (struct sockaddr *)&client_addr, sinlen);
+    int status = send(client, buffer, MAXBUF, 0);
     if (status < 0) {
       // TODO error
     }
