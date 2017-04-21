@@ -102,7 +102,7 @@ int discoveryHost() {
     int brain_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     brain_sock_in.sin_addr.s_addr = htonl(INADDR_ANY);
     brain_sock_in.sin_port = 0;
-    brain_sock_in.sin_family = AF_INET;  
+    brain_sock_in.sin_family = AF_INET;
 
     int status = bind(brain_sock, (struct sockaddr *)&brain_sock_in, sinlen);
     printf("Brain bind status = %d\n", status);
@@ -129,11 +129,11 @@ int brainHost(int sock) {
   struct sockaddr_in client_addr;
   memset(&client_addr, 0, sinlen); 
 
-  std::cout << "blah" << std::endl;
+  std::cout << "Accepting connection..." << std::endl;
   
   int client = accept(sock, (struct sockaddr *)&client_addr, &sinlen);
   if (client < 0) {
-    // TODO error
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
   }
 
   char buffer[MAXBUF];
