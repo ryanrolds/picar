@@ -1,7 +1,7 @@
 /**
  * Picar
  * Author: Ryan R. Olds
- * d
+ * 
  * Discovers remote brain service and begins sending camera frames. Network protocol
  * is straight forward. Car sends a video frames and waits for command from brain.
  * Commands control car movement as well as program exit.
@@ -25,6 +25,8 @@
 #include <unistd.h>
 #include <cstdlib>
 
+#include <raspicam/raspicam.h>
+
 #define MAXBUF 65536
 #define BROADCASTIP "192.168.1.255"
 #define BROADCASTPORT 7492
@@ -34,10 +36,12 @@
 struct sockaddr_in discoverHost();
 int connectToHost(sockaddr_in*, char*);
 void handshake(int, char*);
+void prepareCamera();
 void theLoop(int, char*);
 
 bool running = true;
 unsigned sinlen = sizeof(struct sockaddr_in);
+raspicam::RaspiCam Camera;
 
 static void sigint_catch(int signo) {
   std::cout << "Caught " << signo << std::endl;
@@ -57,7 +61,11 @@ int main(int argc, const char** argv) {
     int sock = connectToHost(&server, buffer);
     // Handshake with host
     handshake(sock, buffer);
-    // Run the loop
+
+    // Prepare camera
+    prepareCamera();
+    
+    // Run the loop    
     theLoop(sock, buffer);
 
     std::cout << "Exiting" << std::endl;
@@ -173,18 +181,14 @@ int connectToHost(sockaddr_in* server, char* buffer) {
   // Setup connection brain
   int sock = socket(AF_INET, SOCK_STREAM, 0);
   if (sock < 0) {
-    std::cout << "a" << std::endl;
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
   }
    
   // Bind socket
   int status = connect(sock, (struct sockaddr*) server, sinlen);
   if (status < 0) {
-    std::cout << "b" << std::endl;
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
   }
-
-  std::cout << "c" << std::endl;
 
   return sock;
 }
@@ -212,6 +216,14 @@ void handshake(int sock, char* buffer) {
   // TODO confirm handshake version
 }
 
+void prepareCamera() {
+  std::cout << "Camera processing starting" << std::endl;
+
+  if (!Camera.open()) {
+    throw std::runtime_error("Error: Unable to open camera");
+  }
+}
+
 void theLoop(int sock, char* buffer) {
   // Prepare signal handler, will be used to abort the loop
   if (signal(SIGINT, sigint_catch) == SIG_ERR) {
@@ -219,12 +231,18 @@ void theLoop(int sock, char* buffer) {
   }
 
   int status;
-
+  int frameSize = Camera.getImageTypeSize(raspicam::RASPICAM_FORMAT_RGB);
+  unsigned char *frame = new unsigned char[frameSize];
+  
   while (running) {
     // Write frame+sensor to brain
     memset(buffer, 0, MAXBUF);
+    
+    Camera.grab();
+    Camera.retrieve(frame);
+        
     sprintf(buffer, "frame and sensors");
-    status = send(sock, buffer, strlen(buffer), 0);
+    status = send(sock, frame, frameSize, 0);
     if (status < 0) {
       // TODO handle error
     }
@@ -237,6 +255,8 @@ void theLoop(int sock, char* buffer) {
     }
 
     std::cout << "Recieved: " << buffer << std::endl;
+
+    // TODO act on control data
 
     sleep(5);
   }

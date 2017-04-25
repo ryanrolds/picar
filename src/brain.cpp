@@ -61,10 +61,10 @@ int discoveryHost() {
   sock_in.sin_family = PF_INET;
   
   int status = bind(sock, (struct sockaddr *)&sock_in, sinlen);
-  printf("Bind Status = %d\n", status);
+  std::cout << "Bind Status: " << status << std::endl;
 
   status = getsockname(sock, (struct sockaddr *)&sock_in, &sinlen);
-  printf("Sock port %d\n", htons(sock_in.sin_port));
+  std::cout << "Sock port: " << htons(sock_in.sin_port) << std::endl;
 
   struct timeval read_timeout;
   read_timeout.tv_sec = 1;
@@ -93,7 +93,7 @@ int discoveryHost() {
       }
     }
 
-    std::cout << buffer << std::endl;
+    std::cout << "Recv: " <<  buffer << std::endl;
     
     // Setup new socket for client 
     struct sockaddr_in brain_sock_in;
@@ -105,12 +105,12 @@ int discoveryHost() {
     brain_sock_in.sin_family = AF_INET;
 
     int status = bind(brain_sock, (struct sockaddr *)&brain_sock_in, sinlen);
-    printf("Brain bind status = %d\n", status);
+    std::cout << "Brain bind status " << status << std::endl;
     
     listen(brain_sock, 0);
     
     status = getsockname(brain_sock, (struct sockaddr *)&brain_sock_in, &sinlen);
-    printf("Brain sock port %d\n", htons(brain_sock_in.sin_port));
+    std::cout << "Brain sock port " << htons(brain_sock_in.sin_port) << std::endl;
 
     // Create thread and add to vector
     // TODO zombie thread handling/cleanup
@@ -142,10 +142,10 @@ int brainHost(int sock) {
     memset(buffer, 0, MAXBUF);
     int bytes = read(client, buffer, MAXBUF);
     if (bytes < 0) {
-      // TODO error
+      throw std::runtime_error("Error: " + std::string(strerror(errno)));
     }
 
-    std::cout << "Recieved %s" << buffer << std::endl;
+    std::cout << "Recieved: " << buffer << std::endl;
     
     // Process
     sleep(5);
@@ -155,7 +155,7 @@ int brainHost(int sock) {
     int buflen = strlen(buffer);
     int status = send(client, buffer, MAXBUF, 0);
     if (status < 0) {
-      // TODO error
+      throw std::runtime_error("Error: " + std::string(strerror(errno)));
     }
   }
 

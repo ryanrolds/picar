@@ -35,7 +35,7 @@ void processCamera() {
   if (result == -1) {
     return;
   }
-  
+ 
   for(;;) {
     camera.grab();
     camera.retrieve(frame);
