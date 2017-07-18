@@ -34,7 +34,7 @@
 
 struct sockaddr_in discoverHost();
 int connectToHost(sockaddr_in*, char*);
-void handshake(int, char*);
+void handshake(int, char*, int);
 void prepareCamera(raspicam::RaspiCam&);
 void theLoop(int, char*, raspicam::RaspiCam&);
 
@@ -53,18 +53,21 @@ int main(int argc, const char** argv) {
 
   struct sockaddr_in server;
   try {
-    // Discovery host
-    server = discoverHost();
-    // Connect to host
-    int sock = connectToHost(&server, buffer);
-    // Handshake with host
-    handshake(sock, buffer);
-
     raspicam::RaspiCam Camera;
-    
     // Prepare camera
     prepareCamera(Camera);
+
+    int frameSize = Camera.getImageTypeSize(raspicam::RASPICAM_FORMAT_RGB);
     
+    // Discovery host
+    server = discoverHost();
+    
+    // Connect to host
+    int sock = connectToHost(&server, buffer);
+    
+    // Handshake with host
+    handshake(sock, buffer, frameSize);
+        
     // Run the loop    
     theLoop(sock, buffer, Camera);
 
@@ -193,12 +196,11 @@ int connectToHost(sockaddr_in* server, char* buffer) {
   return sock;
 }
 
-void handshake(int sock, char* buffer) {
+void handshake(int sock, char* buffer, int frameSize) {
   std::cout << "Connected" << std::endl;
 
-  // Prepare buffer and send version
-  sprintf(buffer, "v0.0.1");
-
+  // Sent client version
+  sprintf(buffer, "v0.0.1");  
   int status = send(sock, buffer, strlen(buffer), 0);
   if (status < 0) {
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
@@ -207,13 +209,22 @@ void handshake(int sock, char* buffer) {
   // Prepare to receive to
   memset(buffer, 0, MAXBUF);
 
-  // Recieve new broadcasts
+  // Recieve server version
   status = recv(sock, buffer, MAXBUF, 0);
   if (status < 0) {
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
   }
 
-  // TODO confirm handshake version
+  if (strcmp(buffer, "v0.0.1") != 0) {
+    // TODO handle version mismatch
+    throw std::runtime_error("Error: Unsupported server version" + std::string(buffer));
+  }
+
+  // Sent frame size
+  status = send(sock, (const char*)&frameSize, sizeof(int), 0);
+  if (status < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }  
 }
 
 void prepareCamera(raspicam::RaspiCam &Camera) {  
@@ -223,9 +234,7 @@ void prepareCamera(raspicam::RaspiCam &Camera) {
     throw std::runtime_error("Error: Unable to open camera");
   }
 
-  std::cout << "Camera: " << Camera.getId() << std::endl;
-
-  
+  std::cout << "Camera: " << Camera.getId() << std::endl;  
 }
 
 void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera) {
