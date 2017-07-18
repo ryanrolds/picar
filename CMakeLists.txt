@@ -9,6 +9,7 @@ add_compile_options(-std=c++11)
 
 # Search for 
 include_directories(include)
+include_directories(raspicam-0.1.6/src)
 
 # Create bin, and logs
 make_directory(bin)
