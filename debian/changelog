@@ -1,3 +1,10 @@
+picar (0.0.6) unstable; urgency=low
+
+  * Disabled building of utils
+  * Possible fix for Raspicam not working
+
+ -- Ryan R. Olds <ryanrolds@gmail.com>  Mon, 17 Jul 2017 21:04:00 -0700
+
 picar (0.0.5) unstable; urgency=low
 
   * Added Raspicam back to car 
