@@ -1,3 +1,9 @@
+picar (0.0.5) unstable; urgency=low
+
+  * Added Raspicam back to car 
+
+ -- Ryan R. Olds <ryanrolds@gmail.com>  Mon, 17 Jul 2017 20:33:00 -0700
+
 picar (0.0.4) unstable; urgency=low
 
   * Handshake and mock data exchange 
