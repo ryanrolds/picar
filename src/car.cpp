@@ -25,7 +25,7 @@
 #include <unistd.h>
 #include <cstdlib>
 
-#include <raspicam/raspicam.h>
+#include "raspicam.h"
 
 #define MAXBUF 65536
 #define BROADCASTIP "192.168.1.255"
