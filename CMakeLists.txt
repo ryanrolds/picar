@@ -5,7 +5,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/modules )
 list(APPEND CMAKE_MODULE_PATH /usr/local/lib/cmake)
 
 add_compile_options(-std=c++11)
-link_directories(/usr/local/lib)
+#link_directories(/usr/local/lib)
+
 # Search for 
 include_directories(include)
 
@@ -23,14 +24,16 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # Picar
 project(picar)
 
-find_package(raspicam REQUIRED)
+add_subdirectory(raspicam-0.1.6/)
+
+#find_package(raspicam REQUIRED)
 #find_package(OpenCV REQUIRED)
  
 add_executable(picar-brain src/brain.cpp)
 target_link_libraries(picar-brain pthread)
 
 add_executable(picar-car src/car.cpp)
-target_link_libraries(picar-car pthread ${raspicam_LIBS})
+target_link_libraries(picar-car pthread raspicam)
 
 #add_executable(picar src/main.cpp src/detect.cpp src/control.cpp src/senses.cpp)
 #target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})
