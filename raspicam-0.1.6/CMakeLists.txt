@@ -28,7 +28,7 @@ set(PROJECT_DLLVERSION)
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_INSTALL_PREFIX}/lib/cmake/ /usr/lib/cmake)
 
 OPTION(BUILD_SHARED_LIBS 	"Set to OFF to build static libraries" OFF)
-OPTION(BUILD_UTILS 	"Acitvates/Deactivates building utils  libraries" ON)
+OPTION(BUILD_UTILS 	"Acitvates/Deactivates building utils  libraries" OFF)
 
 # ----------------------------------------------------------------------------
 #   Find Dependencies

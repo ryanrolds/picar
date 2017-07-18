@@ -7,6 +7,7 @@
  * Commands control car movement as well as program exit.
  */
 #include "car.hpp"
+#include "raspicam.h"
 
 #include <signal.h>
 #include <stdlib.h>
@@ -25,8 +26,6 @@
 #include <unistd.h>
 #include <cstdlib>
 
-#include "raspicam.h"
-
 #define MAXBUF 65536
 #define BROADCASTIP "192.168.1.255"
 #define BROADCASTPORT 7492
@@ -36,12 +35,11 @@
 struct sockaddr_in discoverHost();
 int connectToHost(sockaddr_in*, char*);
 void handshake(int, char*);
-void prepareCamera();
-void theLoop(int, char*);
+void prepareCamera(raspicam::RaspiCam&);
+void theLoop(int, char*, raspicam::RaspiCam&);
 
 bool running = true;
 unsigned sinlen = sizeof(struct sockaddr_in);
-raspicam::RaspiCam Camera;
 
 static void sigint_catch(int signo) {
   std::cout << "Caught " << signo << std::endl;
@@ -62,11 +60,13 @@ int main(int argc, const char** argv) {
     // Handshake with host
     handshake(sock, buffer);
 
+    raspicam::RaspiCam Camera;
+    
     // Prepare camera
-    prepareCamera();
+    prepareCamera(Camera);
     
     // Run the loop    
-    theLoop(sock, buffer);
+    theLoop(sock, buffer, Camera);
 
     std::cout << "Exiting" << std::endl;
   } catch(std::runtime_error e) {
@@ -216,15 +216,19 @@ void handshake(int sock, char* buffer) {
   // TODO confirm handshake version
 }
 
-void prepareCamera() {
+void prepareCamera(raspicam::RaspiCam &Camera) {  
   std::cout << "Camera processing starting" << std::endl;
 
   if (!Camera.open()) {
     throw std::runtime_error("Error: Unable to open camera");
   }
+
+  std::cout << "Camera: " << Camera.getId() << std::endl;
+
+  
 }
 
-void theLoop(int sock, char* buffer) {
+void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera) {
   // Prepare signal handler, will be used to abort the loop
   if (signal(SIGINT, sigint_catch) == SIG_ERR) {
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
