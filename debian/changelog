@@ -1,8 +1,15 @@
+picar (0.0.8) unstable; urgency=low
+
+  * Protocol for variable frame size
+  * Frame sending is working
+
+ -- Ryan R. Olds <ryanrolds@gmail.com>  Sat, 22 Jul 2017 13:12:00 -0700
+
 picar (0.0.7) unstable; urgency=low
 
   * Switched back to raspicam dynamic lib
 
- -- Ryan R. Olds <ryanrolds@gmail.com>  Sun, 22 Jul 2017 10:01:00 -0700
+ -- Ryan R. Olds <ryanrolds@gmail.com>  Sat, 22 Jul 2017 10:01:00 -0700
 
 picar (0.0.6) unstable; urgency=low
 
