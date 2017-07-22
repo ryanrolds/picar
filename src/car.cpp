@@ -206,6 +206,8 @@ void handshake(int sock, char* buffer, int frameSize) {
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
   }
 
+  std::cout << "Sent client version" << std::endl;
+
   // Prepare to receive to
   memset(buffer, 0, MAXBUF);
 
@@ -215,16 +217,21 @@ void handshake(int sock, char* buffer, int frameSize) {
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
   }
 
+  std::cout << "Server version: " << buffer << std::endl;
+
   if (strcmp(buffer, "v0.0.1") != 0) {
     // TODO handle version mismatch
     throw std::runtime_error("Error: Unsupported server version" + std::string(buffer));
   }
 
   // Sent frame size
-  status = send(sock, (const char*)&frameSize, sizeof(int), 0);
+  int networkFrameSize = htonl(frameSize);
+  status = send(sock, &networkFrameSize, sizeof(networkFrameSize), 0);
   if (status < 0) {
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
-  }  
+  }
+
+  std::cout << "Handshake complete" << std::endl;
 }
 
 void prepareCamera(raspicam::RaspiCam &Camera) {  
