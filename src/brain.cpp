@@ -27,6 +27,7 @@ std::vector<std::thread> brains;
 
 int discoveryHost();
 int brainHost(int);
+void writeFrame(char*, unsigned int, unsigned int, unsigned int);
 
 static void sigint_catch(int signo) {
   std::cout << "Caught " << signo << std::endl;
@@ -161,29 +162,49 @@ int brainHost(int sock) {
   std::cout << "Sent client version" << std::endl;
   
   // Get frame size
-  int frameSize = 0;
-  bytes = read(client, &frameSize, sizeof(int));
+  unsigned int frameSize = 0;
+  bytes = read(client, &frameSize, sizeof(unsigned int));
   if (bytes < 0) {
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
   }
 
   frameSize = ntohl(frameSize);
 
-  printf("Frame size %d\n", frameSize);
+  unsigned int frameWidth = 0;
+  bytes = read(client, &frameWidth, sizeof(unsigned int));
+  if (bytes < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }
+
+  frameWidth = ntohl(frameWidth);
+
+  unsigned int frameHeight = 0;
+  bytes = read(client, &frameHeight, sizeof(unsigned int));
+  if (bytes < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }
+
+  frameHeight = ntohl(frameHeight);
+  
+  printf("Frame size %d %dx%d\n", frameSize, frameWidth, frameHeight);
   
   std::cout << "Handshake complete" << std::endl;
 
-  char frame[frameSize];
+  char* frame = new char[frameSize];
   memset(frame, 0, frameSize);
 
   int counter = 0;
   
   while (true) {
-    // Read
-    char* framePtr = frame;
-    char* bufferPtr = buffer;
-    
     int pos = 0;
+    
+    // Write complete frame to disk
+    //char filename[] = "network.ppm";
+    //FILE* networkFile = fopen(filename, "w");
+    //sprintf(buffer, "P6\n1280 960 255\n");
+    // Header
+    //fwrite(buffer, sizeof(char), strlen(buffer), networkFile);
+    
     memset(buffer, 0, MAXBUF);
     
     while(pos < frameSize) {
@@ -191,29 +212,25 @@ int brainHost(int sock) {
       if (bytes < 0) {
 	throw std::runtime_error("Error: " + std::string(strerror(errno)));
       }
+    
+      // Write data to file
+      //fwrite(buffer, sizeof(char), bytes, networkFile);
 
-      strncpy(framePtr, buffer, bytes);
-            
-      framePtr += bytes;      
+      // Write data to frame buffer
+      memcpy(frame + pos, buffer, bytes);
       pos += bytes;
-      
-      //std::cout << "Recieved " << bytes << " bytes" << std::endl;
     }
 
+    //fclose(networkFile);
+    
     std::cout << "Total recieved " << pos << " bytes" << std::endl;
 
-    // Write complete frame to disk
-    char filename[] = "image";
-    FILE* img = fopen(filename, "wb");
-    fwrite(frame, sizeof(char), sizeof(frame), img);
-    fclose(img);
-
+    // Write collected frame to disk
+    writeFrame(frame, frameSize, frameWidth, frameHeight);
+    
     std::cout << "Done" << std::endl;
-    
-    return 0;
-    
-    // Process
-    sleep(5);
+
+    // TODO Process
     
     // Acknowledge
     sprintf(buffer, "cont");
@@ -225,3 +242,18 @@ int brainHost(int sock) {
 
   // Done
 };
+
+void writeFrame(char* frame, unsigned int frameSize, unsigned int frameWidth, unsigned int frameHeight) {
+  char buffer[MAXBUF];
+  //memset(buffer, 0, MAXBUF);  
+  
+  // Write complete frame to disk
+  char frameFilename[] = "frame.ppm";
+  FILE* frameFile = fopen(frameFilename, "w");
+  sprintf(buffer, "P6\n%d %d %d\n", frameWidth, frameHeight, 255);
+  // Header
+  fwrite(buffer, sizeof(char), strlen(buffer), frameFile);
+  // Data
+  fwrite(frame, sizeof(char), frameSize, frameFile);
+  fclose(frameFile);
+}
