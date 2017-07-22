@@ -32,9 +32,12 @@
 #define HOSTPORT 7493
 #define COMMANDPORT 7494
 
+const unsigned int CAPTURE_WIDTH = 320;
+const unsigned int CAPTURE_HEIGHT = 240;
+
 struct sockaddr_in discoverHost();
 int connectToHost(sockaddr_in*, char*);
-void handshake(int, char*, int);
+void handshake(int, char*, int, unsigned int, unsigned int);
 void prepareCamera(raspicam::RaspiCam&);
 void theLoop(int, char*, raspicam::RaspiCam&);
 
@@ -60,7 +63,7 @@ int main(int argc, const char** argv) {
     int frameSize = Camera.getImageTypeSize(raspicam::RASPICAM_FORMAT_RGB);
 
     std::cout << "Frame size: " << frameSize << std::endl;
-    std::cout << "Frame dim: " << Camera.getWidth() << ", " << Camera.getHeight() << std::endl;
+    std::cout << "Frame dim: " << Camera.getWidth() << "x" << Camera.getHeight() << std::endl;
 
     // Discovery host
     server = discoverHost();
@@ -69,7 +72,7 @@ int main(int argc, const char** argv) {
     int sock = connectToHost(&server, buffer);
 
     // Handshake with host
-    handshake(sock, buffer, frameSize);
+    handshake(sock, buffer, frameSize, Camera.getWidth(), Camera.getHeight());
 
     // Run the loop
     theLoop(sock, buffer, Camera);
@@ -199,7 +202,7 @@ int connectToHost(sockaddr_in* server, char* buffer) {
   return sock;
 }
 
-void handshake(int sock, char* buffer, int frameSize) {
+void handshake(int sock, char* buffer, int frameSize, unsigned int width, unsigned int height) {
   std::cout << "Connected" << std::endl;
 
   // Sent client version
@@ -226,7 +229,7 @@ void handshake(int sock, char* buffer, int frameSize) {
     // TODO handle version mismatch
     throw std::runtime_error("Error: Unsupported server version" + std::string(buffer));
   }
-
+  
   // Sent frame size
   int networkFrameSize = htonl(frameSize);
   status = send(sock, &networkFrameSize, sizeof(networkFrameSize), 0);
@@ -234,16 +237,34 @@ void handshake(int sock, char* buffer, int frameSize) {
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
   }
 
+  unsigned int networkWidth = htonl(width);
+  status = send(sock, &networkWidth, sizeof(networkWidth), 0);
+  if (status < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }
+
+  unsigned int networkHeight = htonl(height);
+  status = send(sock, &networkHeight, sizeof(networkHeight), 0);
+  if (status < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }
+  
   std::cout << "Handshake complete" << std::endl;
 }
 
 void prepareCamera(raspicam::RaspiCam &Camera) {
   std::cout << "Camera processing starting" << std::endl;
 
+  Camera.setCaptureSize(CAPTURE_WIDTH, CAPTURE_HEIGHT);
+  Camera.setVerticalFlip(true);
+  Camera.setHorizontalFlip(true);
+  Camera.setExposure(raspicam::RASPICAM_EXPOSURE_AUTO); // Max 30
+
+  
   if (!Camera.open()) {
     throw std::runtime_error("Error: Unable to open camera");
   }
-
+  
   std::cout << "Camera: " << Camera.getId() << std::endl;
 }
 
@@ -281,7 +302,5 @@ void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera) {
     std::cout << "Recieved: " << buffer << std::endl;
 
     // TODO act on control data
-
-    sleep(5);
   }
 }
