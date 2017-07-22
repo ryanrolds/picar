@@ -67,6 +67,7 @@ int discoveryHost() {
   status = getsockname(sock, (struct sockaddr *)&sock_in, &sinlen);
   std::cout << "Sock port: " << htons(sock_in.sin_port) << std::endl;
 
+  // Set recvfrom time out to 1 sec
   struct timeval read_timeout;
   read_timeout.tv_sec = 1;
   read_timeout.tv_usec = 0;
@@ -112,12 +113,12 @@ int discoveryHost() {
     std::cout << "Brain sock port " << htons(brain_sock_in.sin_port) << std::endl;
 
     // Create thread and add to vector
-    // TODO zombie thread handling/cleanup
     brains.push_back(std::thread(brainHost, brain_sock));
 
+    // TODO zombie thread handling/cleanup
+    
     // Send new host port to client
-    status = sendto(sock, (struct sockaddr *)&brain_sock_in.sin_port, sizeof(brain_sock_in.sin_port),
-		    0, (struct sockaddr *)&sock_in, sinlen);
+    status = sendto(sock, (struct sockaddr *)&brain_sock_in.sin_port, sizeof(brain_sock_in.sin_port), 0, (struct sockaddr *)&sock_in, sinlen);
   }
   
   shutdown(sock, 2);
@@ -196,6 +197,22 @@ int brainHost(int sock) {
   int counter = 0;
   
   while (true) {
+    std::cout << "tock" << std::endl;
+    
+    // Read 3 bytes
+    int bytes = read(client, buffer, 3);
+    if (bytes < 0) {
+      throw std::runtime_error("Error: " + std::string(strerror(errno)));
+    }
+    
+    if (buffer[0] == 0) { // Exit
+      break;
+    }
+
+    if (buffer[1] == 1) { // Obsticle sensor
+      
+    }
+    
     int pos = 0;
     
     // Write complete frame to disk
@@ -226,21 +243,25 @@ int brainHost(int sock) {
     std::cout << "Total recieved " << pos << " bytes" << std::endl;
 
     // Write collected frame to disk
-    writeFrame(frame, frameSize, frameWidth, frameHeight);
+    if (counter % 20 == 0) {
+      writeFrame(frame, frameSize, frameWidth, frameHeight);
+    }
     
     std::cout << "Done" << std::endl;
 
     // TODO Process
+    buffer[0] = 0; // Center
+    buffer[1] = 0; // Stop
     
-    // Acknowledge
-    sprintf(buffer, "cont");
-    int status = send(client, buffer, strlen(buffer), 0);
+    // Send command   
+    int status = send(client, buffer, 2, 0);
     if (status < 0) {
       throw std::runtime_error("Error: " + std::string(strerror(errno)));
     }
-  }
 
-  // Done
+    counter++;
+    std::cout << "tock" << std::endl;
+  }
 };
 
 void writeFrame(char* frame, unsigned int frameSize, unsigned int frameWidth, unsigned int frameHeight) {

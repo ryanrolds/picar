@@ -278,13 +278,27 @@ void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera) {
   int frameSize = Camera.getImageTypeSize(raspicam::RASPICAM_FORMAT_RGB);
   unsigned char *frame = new unsigned char[frameSize];
 
-  while (running) {
-    // Write frame+sensor to brain
-    memset(buffer, 0, MAXBUF);
+  while(true) {
+    std::cout << "tick" << std::endl;
 
+    if (running) {
+      buffer[0] = 1;
+    } else {
+      buffer[0] = 0;
+    }
+    
+    buffer[1] = 0; // Obstical sensor
+    
+    status = send(sock, buffer, 2, 0);    
+    if (status < 0) {
+      // TODO handle error
+    }
+
+    // Get frame
     Camera.grab();
     Camera.retrieve(frame);
 
+    // Send sensor to brain
     sprintf(buffer, "frame and sensors");
     status = send(sock, frame, frameSize, 0);
     std::cout << "Status: " << status << std::endl;
@@ -292,15 +306,25 @@ void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera) {
       // TODO handle error
     }
 
-    // Read control data
-    memset(buffer, 0, MAXBUF);
-    status = recv(sock, buffer, MAXBUF, 0);
+    // Read control data    
+    status = recv(sock, buffer, 2, 0);
     if (status < 0) {
       // TODO handle error
     }
 
-    std::cout << "Recieved: " << buffer << std::endl;
+    std::cout << "Recieved: " << buffer[0] << buffer[1] << std::endl;
+    
+    // Steering
+        
+    // Forward/backward
+    if (buffer[1] == 0) { // Stop
+      
+    } else if (buffer[1] > 0) { // Forward
 
-    // TODO act on control data
+    } else if (buffer[1] < 0) { // Backward
+      
+    }
+
+    std::cout << "tock" << std::endl;
   }
 }
