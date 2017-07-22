@@ -7,7 +7,7 @@
  * Commands control car movement as well as program exit.
  */
 #include "car.hpp"
-#include "raspicam.h"
+#include <raspicam/raspicam.h>
 
 #include <signal.h>
 #include <stdlib.h>

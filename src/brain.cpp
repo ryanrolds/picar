@@ -91,9 +91,7 @@ int discoveryHost() {
       } else {
 	continue;
       }
-    }
-
-    std::cout << "Recv: " <<  buffer << std::endl;
+    }   
     
     // Setup new socket for client 
     struct sockaddr_in brain_sock_in;
@@ -128,7 +126,7 @@ int discoveryHost() {
 int brainHost(int sock) {
   struct sockaddr_in client_addr;
   memset(&client_addr, 0, sinlen); 
-
+  
   std::cout << "Accepting connection..." << std::endl;
   
   int client = accept(sock, (struct sockaddr *)&client_addr, &sinlen);
@@ -137,23 +135,89 @@ int brainHost(int sock) {
   }
 
   char buffer[MAXBUF];
+  memset(buffer, 0, MAXBUF);  
+
+  // Handshake  
+  int bytes = read(client, buffer, MAXBUF);
+  if (bytes < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }
+  
+  std::cout << "Client version: " <<  buffer << std::endl;
+  
+  if (strcmp(buffer, "v0.0.1") != 0) {
+    // TODO handle version mismatch
+    throw std::runtime_error("Error: Unsupported client version" + std::string(buffer));
+  }  
+
+  // Write server version
+  sprintf(buffer, "v0.0.1");
+
+  int status = send(client, buffer, strlen(buffer), 0);
+  if (status < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }
+
+  std::cout << "Sent client version" << std::endl;
+  
+  // Get frame size
+  int frameSize = 0;
+  bytes = read(client, &frameSize, sizeof(int));
+  if (bytes < 0) {
+    throw std::runtime_error("Error: " + std::string(strerror(errno)));
+  }
+
+  frameSize = ntohl(frameSize);
+
+  printf("Frame size %d\n", frameSize);
+  
+  std::cout << "Handshake complete" << std::endl;
+
+  char frame[frameSize];
+  memset(frame, 0, frameSize);
+
+  int counter = 0;
+  
   while (true) {
     // Read
+    char* framePtr = frame;
+    char* bufferPtr = buffer;
+    
+    int pos = 0;
     memset(buffer, 0, MAXBUF);
-    int bytes = read(client, buffer, MAXBUF);
-    if (bytes < 0) {
-      throw std::runtime_error("Error: " + std::string(strerror(errno)));
+    
+    while(pos < frameSize) {
+      int bytes = read(client, buffer, MAXBUF);
+      if (bytes < 0) {
+	throw std::runtime_error("Error: " + std::string(strerror(errno)));
+      }
+
+      strncpy(framePtr, buffer, bytes);
+            
+      framePtr += bytes;      
+      pos += bytes;
+      
+      //std::cout << "Recieved " << bytes << " bytes" << std::endl;
     }
 
-    std::cout << "Recieved: " << buffer << std::endl;
+    std::cout << "Total recieved " << pos << " bytes" << std::endl;
+
+    // Write complete frame to disk
+    char filename[] = "image";
+    FILE* img = fopen(filename, "wb");
+    fwrite(frame, sizeof(char), sizeof(frame), img);
+    fclose(img);
+
+    std::cout << "Done" << std::endl;
+    
+    return 0;
     
     // Process
     sleep(5);
     
     // Acknowledge
     sprintf(buffer, "cont");
-    int buflen = strlen(buffer);
-    int status = send(client, buffer, MAXBUF, 0);
+    int status = send(client, buffer, strlen(buffer), 0);
     if (status < 0) {
       throw std::runtime_error("Error: " + std::string(strerror(errno)));
     }

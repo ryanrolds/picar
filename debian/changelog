@@ -1,3 +1,9 @@
+picar (0.0.7) unstable; urgency=low
+
+  * Switched back to raspicam dynamic lib
+
+ -- Ryan R. Olds <ryanrolds@gmail.com>  Sun, 22 Jul 2017 10:01:00 -0700
+
 picar (0.0.6) unstable; urgency=low
 
   * Disabled building of utils
