@@ -4,9 +4,12 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <cstring>
+#include <string>
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <ctime>
+#include <algorithm>
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -21,13 +24,13 @@
 #define SERVERPORT 7493
 bool quit = false;
 unsigned sinlen = sizeof(struct sockaddr_in);  
-
+const bool DEBUG = true;
 
 std::vector<std::thread> brains;
 
 int discoveryHost();
 int brainHost(int);
-void writeFrame(char*, unsigned int, unsigned int, unsigned int);
+void writeFrame(char*, unsigned int, unsigned int, unsigned int, int);
 
 static void sigint_catch(int signo) {
   std::cout << "Caught " << signo << std::endl;
@@ -195,25 +198,34 @@ int brainHost(int sock) {
   memset(frame, 0, frameSize);
 
   int counter = 0;
+  int frameCounter = 0;
+  int obstacle = 0;
+  int unstuck = 0;
+
   
   while (true) {
-    std::cout << "tock" << std::endl;
+    std::cout << "tick" << std::endl;
     
     // Read 3 bytes
     int bytes = read(client, buffer, 3);
     if (bytes < 0) {
       throw std::runtime_error("Error: " + std::string(strerror(errno)));
     }
+
+    std::cout << "Recieved status" << std::endl;
     
     if (buffer[0] == 0) { // Exit
+      std::cout << std::endl << "Car shutting down" << std::endl;
       break;
     }
 
-    if (buffer[1] == 1) { // Obsticle sensor
-      
+    if (buffer[1] > 0) { // Obsticle sensor
+      obstacle = 10;
+    } else if (counter % 100 == 0) {
+      unstuck = 10;
     }
     
-    int pos = 0;
+    unsigned int pos = 0;
     
     // Write complete frame to disk
     //char filename[] = "network.ppm";
@@ -224,34 +236,47 @@ int brainHost(int sock) {
     
     memset(buffer, 0, MAXBUF);
     
-    while(pos < frameSize) {
-      int bytes = read(client, buffer, MAXBUF);
+    while(pos < frameSize - 1) {
+      unsigned int bytes = read(client, buffer, MAXBUF);
       if (bytes < 0) {
+	std::cout << "Error reading frame " << bytes << std::endl;
 	throw std::runtime_error("Error: " + std::string(strerror(errno)));
       }
     
       // Write data to file
       //fwrite(buffer, sizeof(char), bytes, networkFile);
-
+      
       // Write data to frame buffer
       memcpy(frame + pos, buffer, bytes);
       pos += bytes;
+
+      std::cout << "Getting frame" << std::dec << pos << std::endl;
     }
 
     //fclose(networkFile);
     
-    std::cout << "Total recieved " << pos << " bytes" << std::endl;
+    std::cout << "Received frame " << pos << std::endl;
 
     // Write collected frame to disk
     if (counter % 20 == 0) {
-      writeFrame(frame, frameSize, frameWidth, frameHeight);
+      writeFrame(frame, frameSize, frameWidth, frameHeight, frameCounter);
+      frameCounter++;
     }
-    
-    std::cout << "Done" << std::endl;
 
-    // TODO Process
-    buffer[0] = 0; // Center
-    buffer[1] = 0; // Stop
+    if (obstacle > 0) {
+      buffer[0] = 1; // Left	
+      buffer[1] = 1; // Back
+
+      obstacle -= 1;
+    } else if (unstuck > 0) {
+      buffer[0] = 128; // Left	
+      buffer[1] = 1; // Back
+
+      unstuck -= 1;      
+    } else {
+      buffer[0] = 0; // Center	
+      buffer[1] = 128; // Forward 
+    } 
     
     // Send command   
     int status = send(client, buffer, 2, 0);
@@ -259,18 +284,37 @@ int brainHost(int sock) {
       throw std::runtime_error("Error: " + std::string(strerror(errno)));
     }
 
+    if (DEBUG) {
+      std::cout << "tock" << std::endl;
+    } else if (counter % 10 == 0) {
+      std::cout << "." << std::flush;
+    }
+    
     counter++;
-    std::cout << "tock" << std::endl;
   }
+
+  std::cout << "Brain loop complete" << std::endl;
 };
 
-void writeFrame(char* frame, unsigned int frameSize, unsigned int frameWidth, unsigned int frameHeight) {
+void writeFrame(char* frame, unsigned int frameSize, unsigned int frameWidth, unsigned int frameHeight, int counter) {
   char buffer[MAXBUF];
   //memset(buffer, 0, MAXBUF);  
+
+  time_t now;
+  time(&now);
+  char buf[sizeof "2011-10-08T07:07:09Z"];
+  strftime(buf, sizeof buf, "%FT%TZ", gmtime(&now));
   
   // Write complete frame to disk
-  char frameFilename[] = "frame.ppm";
-  FILE* frameFile = fopen(frameFilename, "w");
+  std::string frameFilename;
+  frameFilename += "/home/ryan/frames/frame_";
+  frameFilename += buf;
+  frameFilename += "_" + std::to_string(counter);
+  frameFilename += ".ppm";
+
+  std::replace( frameFilename.begin(), frameFilename.end(), ':', '-');
+  
+  FILE* frameFile = fopen(frameFilename.c_str(), "w");
   sprintf(buffer, "P6\n%d %d %d\n", frameWidth, frameHeight, 255);
   // Header
   fwrite(buffer, sizeof(char), strlen(buffer), frameFile);
