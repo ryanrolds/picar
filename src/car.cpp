@@ -315,12 +315,13 @@ void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera, int control) {
     Camera.grab();
     Camera.retrieve(frame);
 
+    std::cout << "Frame size: " << sizeof(frame) << std::endl;    
+    
     // Send sensor to brain
-    sprintf(buffer, "frame and sensors");
     status = send(sock, frame, frameSize, 0);
-    //std::cout << "Status: " << status << std::endl;
+    std::cout << "Status: " << std::dec <<  status << std::endl;
     if (status < 0) {
-      break;	    
+      // break;	    
       // TODO handle error
     }
 
