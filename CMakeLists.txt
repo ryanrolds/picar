@@ -31,8 +31,8 @@ find_package(raspicam REQUIRED)
 add_executable(picar-brain src/brain.cpp)
 target_link_libraries(picar-brain pthread)
 
-add_executable(picar-car src/car.cpp)
-target_link_libraries(picar-car pthread ${raspicam_LIBS})
+add_executable(picar-car src/car.cpp src/control.cpp src/senses.cpp)
+target_link_libraries(picar-car pthread wiringPi ${raspicam_LIBS})
 
 #add_executable(picar src/main.cpp src/detect.cpp src/control.cpp src/senses.cpp)
 #target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})

@@ -10,7 +10,7 @@ int setupSenses() {
   return 1;
 }
 
-bool hasObstical() {
+bool hasObstacle() {
   int value = digitalRead(OBJ_PIN);  
   return value == 0;
 }

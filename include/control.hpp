@@ -9,6 +9,8 @@ void setBackward(int, __u16);
 void setStop(int);
 
 // Steering server range
-const __u16 STEERING_MIN = 270;
+const __u16 STEERING_MIN = 285;
 const __u16 STEERING_MAX = 415;
-const __u16 STEERING_CEN = 345;
+const __u16 STEERING_CEN = 350;
+
+// 285 (65) 355 (65) 415

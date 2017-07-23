@@ -1,3 +1,3 @@
 
 int setupSenses();
-bool hasObstical();
+bool hasObstacle();

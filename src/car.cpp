@@ -7,6 +7,8 @@
  * Commands control car movement as well as program exit.
  */
 #include "car.hpp"
+#include "control.hpp"
+#include "senses.hpp"
 #include <raspicam/raspicam.h>
 
 #include <signal.h>
@@ -32,6 +34,7 @@
 #define HOSTPORT 7493
 #define COMMANDPORT 7494
 
+const bool DEBUG = true;
 const unsigned int CAPTURE_WIDTH = 320;
 const unsigned int CAPTURE_HEIGHT = 240;
 
@@ -39,7 +42,7 @@ struct sockaddr_in discoverHost();
 int connectToHost(sockaddr_in*, char*);
 void handshake(int, char*, int, unsigned int, unsigned int);
 void prepareCamera(raspicam::RaspiCam&);
-void theLoop(int, char*, raspicam::RaspiCam&);
+void theLoop(int, char*, raspicam::RaspiCam&, int);
 
 bool running = true;
 unsigned sinlen = sizeof(struct sockaddr_in);
@@ -55,11 +58,14 @@ int main(int argc, const char** argv) {
   memset(buffer, 0, MAXBUF);
 
   struct sockaddr_in server;
+  int control = 0;
   try {
     raspicam::RaspiCam Camera;
     // Prepare camera
     prepareCamera(Camera);
-
+    control = setupControl();
+    setupSenses();
+    
     int frameSize = Camera.getImageTypeSize(raspicam::RASPICAM_FORMAT_RGB);
 
     std::cout << "Frame size: " << frameSize << std::endl;
@@ -75,7 +81,7 @@ int main(int argc, const char** argv) {
     handshake(sock, buffer, frameSize, Camera.getWidth(), Camera.getHeight());
 
     // Run the loop
-    theLoop(sock, buffer, Camera);
+    theLoop(sock, buffer, Camera, control);
 
     std::cout << "Exiting" << std::endl;
   } catch(std::runtime_error e) {
@@ -133,7 +139,6 @@ struct sockaddr_in discoverHost() {
   sprintf(buffer, "marco");
   int buflen = strlen(buffer);
   status = sendto(sock, buffer, buflen, 0, (struct sockaddr *)&sock_in, sinlen);
-
   unsigned short host_port;
   memset(&host_port, 0, sizeof(host_port));
 
@@ -268,7 +273,7 @@ void prepareCamera(raspicam::RaspiCam &Camera) {
   std::cout << "Camera: " << Camera.getId() << std::endl;
 }
 
-void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera) {
+void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera, int control) {
   // Prepare signal handler, will be used to abort the loop
   if (signal(SIGINT, sigint_catch) == SIG_ERR) {
     throw std::runtime_error("Error: " + std::string(strerror(errno)));
@@ -278,53 +283,94 @@ void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera) {
   int frameSize = Camera.getImageTypeSize(raspicam::RASPICAM_FORMAT_RGB);
   unsigned char *frame = new unsigned char[frameSize];
 
+  std::cout << "Starting loop" << std::endl;
+
+  int counter = 0;
+  
   while(true) {
     std::cout << "tick" << std::endl;
 
     if (running) {
       buffer[0] = 1;
     } else {
+      std::cout << std::endl << "Sending shutdown to brain" << std::endl;
       buffer[0] = 0;
     }
     
-    buffer[1] = 0; // Obstical sensor
+    buffer[1] = hasObstacle() ? 1 : 0; // Obstical sensor
     
     status = send(sock, buffer, 2, 0);    
     if (status < 0) {
+      break;
       // TODO handle error
+    }
+
+    std::cout << "Sent running and obs sensor" << std::endl;
+
+    if (!running) {
+      break;
     }
 
     // Get frame
     Camera.grab();
     Camera.retrieve(frame);
 
+    std::cout << "Frame size: " << sizeof(frame) << std::endl;    
+    
     // Send sensor to brain
-    sprintf(buffer, "frame and sensors");
     status = send(sock, frame, frameSize, 0);
-    std::cout << "Status: " << status << std::endl;
+    std::cout << "Status: " << std::dec <<  status << std::endl;
     if (status < 0) {
+      // break;	    
       // TODO handle error
     }
 
+    std::cout << "Sent frame" << std::endl;
+    
     // Read control data    
     status = recv(sock, buffer, 2, 0);
     if (status < 0) {
+      break;
       // TODO handle error
     }
 
-    std::cout << "Recieved: " << buffer[0] << buffer[1] << std::endl;
+    std::cout << "Recieved: " << (int)buffer[0] << " " << (int)buffer[1] << std::endl;
     
     // Steering
-        
+    if (buffer[0] == 0) {
+      std::cout << "cent" << std::endl;      
+      setSteering(control, STEERING_CEN);
+    } else if (buffer[0] > 127) {
+      std::cout << "right" << std::endl;	    	    
+      setSteering(control, STEERING_MAX - 30);
+    } else if (buffer[0] < 128) {
+      std::cout << "left" << std::endl;	    	    
+      setSteering(control, STEERING_MIN + 30);
+    }
+    
     // Forward/backward
     if (buffer[1] == 0) { // Stop
-      
-    } else if (buffer[1] > 0) { // Forward
-
-    } else if (buffer[1] < 0) { // Backward
-      
+      std::cout << "stop" << std::endl;
+      setStop(control);
+    } else if (buffer[1] > 127) { // Forward
+      std::cout << "fore" << std::endl;	    
+      setForward(control, 3700);
+    } else if (buffer[1] < 128) { // Backward
+      std::cout << "back" << std::endl;	    
+      setBackward(control, 4000);
     }
-
-    std::cout << "tock" << std::endl;
+    
+    if (DEBUG) {
+      std::cout << "tock" << std::endl;
+    } else if (counter % 10 == 0) {
+      std::cout << "." << std::flush;
+    }
+    
+    counter++;
   }
+
+  setSteering(control, STEERING_CEN);
+  setStop(control);
+  
+  std::cout << "Loop complete" << std::endl;
 }
