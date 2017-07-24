@@ -22,12 +22,12 @@ At this time
 * Move behavior logic and image processing to amd64 VM
 * Write image collector and write to NAS
 * Write image classifier (wheel and speed)
+* Integrate IR Obst. Sensor (car)
 
 ### TODO
 
 * Get 10k frames classified
 * Train NN/RNN using classified image data
-* Integrate IR Obst. Sensor (car)
 * Create behavior tree (car)
 
 ## Setup
