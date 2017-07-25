@@ -10,7 +10,11 @@ Raspberry Pi + OpenCV driven car. Uses cascades trainned in cat detection to fol
 * Camera mount (see models)
 * IR Sensor mount (see models)
 
-## TODO
+## Status
+
+At this time 
+
+### Complete
 
 * Setup VM and write UDP discovery service
 * Image+sensor processing server (VM)
@@ -18,8 +22,12 @@ Raspberry Pi + OpenCV driven car. Uses cascades trainned in cat detection to fol
 * Move behavior logic and image processing to amd64 VM
 * Write image collector and write to NAS
 * Write image classifier (wheel and speed)
-* Train NN/RNN using classified image data
 * Integrate IR Obst. Sensor (car)
+
+### TODO
+
+* Get 10k frames classified
+* Train NN/RNN using classified image data
 * Create behavior tree (car)
 
 ## Setup
