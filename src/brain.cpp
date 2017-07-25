@@ -24,7 +24,7 @@
 #define SERVERPORT 7493
 bool quit = false;
 unsigned sinlen = sizeof(struct sockaddr_in);  
-const bool DEBUG = true;
+const bool DEBUG = false;
 
 std::vector<std::thread> brains;
 
@@ -204,7 +204,7 @@ int brainHost(int sock) {
 
   
   while (true) {
-    std::cout << "tick" << std::endl;
+    //std::cout << "tick" << std::endl;
     
     // Read 3 bytes
     int bytes = read(client, buffer, 3);
@@ -212,7 +212,7 @@ int brainHost(int sock) {
       throw std::runtime_error("Error: " + std::string(strerror(errno)));
     }
 
-    std::cout << "Recieved status" << std::endl;
+    //std::cout << "Recieved status" << std::endl;
     
     if (buffer[0] == 0) { // Exit
       std::cout << std::endl << "Car shutting down" << std::endl;
@@ -237,7 +237,7 @@ int brainHost(int sock) {
     memset(buffer, 0, MAXBUF);
     
     while(pos < frameSize - 1) {
-      unsigned int bytes = read(client, buffer, MAXBUF);
+      int bytes = read(client, buffer, MAXBUF);
       if (bytes < 0) {
 	std::cout << "Error reading frame " << bytes << std::endl;
 	throw std::runtime_error("Error: " + std::string(strerror(errno)));
@@ -250,12 +250,14 @@ int brainHost(int sock) {
       memcpy(frame + pos, buffer, bytes);
       pos += bytes;
 
-      std::cout << "Getting frame" << std::dec << pos << std::endl;
+      //std::cout << "Getting frame" << std::dec << pos << std::endl;
     }
 
     //fclose(networkFile);
-    
-    std::cout << "Received frame " << pos << std::endl;
+
+    if (pos < frameSize) {
+      std::cout << "Wrong frame size " << pos << std::endl;
+    }
 
     // Write collected frame to disk
     if (counter % 20 == 0) {
