@@ -34,7 +34,7 @@
 #define HOSTPORT 7493
 #define COMMANDPORT 7494
 
-const bool DEBUG = true;
+const bool DEBUG = false;
 const unsigned int CAPTURE_WIDTH = 320;
 const unsigned int CAPTURE_HEIGHT = 240;
 
@@ -288,7 +288,7 @@ void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera, int control) {
   int counter = 0;
   
   while(true) {
-    std::cout << "tick" << std::endl;
+    //std::cout << "tick" << std::endl;
 
     if (running) {
       buffer[0] = 1;
@@ -305,7 +305,7 @@ void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera, int control) {
       // TODO handle error
     }
 
-    std::cout << "Sent running and obs sensor" << std::endl;
+    //std::cout << "Sent running and obs sensor" << std::endl;
 
     if (!running) {
       break;
@@ -315,17 +315,17 @@ void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera, int control) {
     Camera.grab();
     Camera.retrieve(frame);
 
-    std::cout << "Frame size: " << sizeof(frame) << std::endl;    
+    //std::cout << "Frame size: " << sizeof(frame) << std::endl;    
     
     // Send sensor to brain
     status = send(sock, frame, frameSize, 0);
-    std::cout << "Status: " << std::dec <<  status << std::endl;
+    //std::cout << "Status: " << std::dec <<  status << std::endl;
     if (status < 0) {
       // break;	    
       // TODO handle error
     }
 
-    std::cout << "Sent frame" << std::endl;
+    //std::cout << "Sent frame" << std::endl;
     
     // Read control data    
     status = recv(sock, buffer, 2, 0);
@@ -334,29 +334,29 @@ void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera, int control) {
       // TODO handle error
     }
 
-    std::cout << "Recieved: " << (int)buffer[0] << " " << (int)buffer[1] << std::endl;
+    //std::cout << "Recieved: " << (int)buffer[0] << " " << (int)buffer[1] << std::endl;
     
     // Steering
     if (buffer[0] == 0) {
-      std::cout << "cent" << std::endl;      
+      //std::cout << "cent" << std::endl;      
       setSteering(control, STEERING_CEN);
     } else if (buffer[0] > 127) {
-      std::cout << "right" << std::endl;	    	    
+      //std::cout << "right" << std::endl;	    	    
       setSteering(control, STEERING_MAX - 30);
     } else if (buffer[0] < 128) {
-      std::cout << "left" << std::endl;	    	    
+      //std::cout << "left" << std::endl;	    	    
       setSteering(control, STEERING_MIN + 30);
     }
     
     // Forward/backward
     if (buffer[1] == 0) { // Stop
-      std::cout << "stop" << std::endl;
+      //std::cout << "stop" << std::endl;
       setStop(control);
     } else if (buffer[1] > 127) { // Forward
-      std::cout << "fore" << std::endl;	    
+      //std::cout << "fore" << std::endl;	    
       setForward(control, 3700);
     } else if (buffer[1] < 128) { // Backward
-      std::cout << "back" << std::endl;	    
+      //std::cout << "back" << std::endl;	    
       setBackward(control, 4000);
     }
     
