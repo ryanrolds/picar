@@ -16,7 +16,6 @@ make_directory(bin)
 make_directory(logs)
 
 file(COPY share/visionary.net_cat_cascade_web_LBP.xml DESTINATION share/picar)
-file(COPY scripts/picar-car.pre DESTINATION ${CMAKE_BINARY_DIR}/bin)
 
 # Set output dirs
 #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -27,7 +26,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 project(picar)
 
 find_package(raspicam REQUIRED)
-#find_package(OpenCV REQUIRED)
  
 add_executable(picar-brain src/brain.cpp)
 target_link_libraries(picar-brain pthread)
@@ -35,7 +33,12 @@ target_link_libraries(picar-brain pthread)
 add_executable(picar-car src/car.cpp src/control.cpp src/senses.cpp)
 target_link_libraries(picar-car pthread wiringPi ${raspicam_LIBS})
 
+# Old, switching to Cafee - here for reference
+#find_package(OpenCV REQUIRED)
+
+# Old, pre car+brain refactor - here for reference
 #add_executable(picar src/main.cpp src/detect.cpp src/control.cpp src/senses.cpp)
 #target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})
 
 install(TARGETS picar-brain picar-car DESTINATION bin)
+install(PROGRAMS scripts/picar-brain.pre DESTINATION bin)
