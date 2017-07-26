@@ -16,7 +16,7 @@ make_directory(bin)
 make_directory(logs)
 
 file(COPY share/visionary.net_cat_cascade_web_LBP.xml DESTINATION share/picar)
-file(COPY scripts/picar-car.pre DESTINATION bin/)
+file(COPY scripts/picar-car.pre DESTINATION ${CMAKE_BINARY_DIR}/bin)
 
 # Set output dirs
 #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
