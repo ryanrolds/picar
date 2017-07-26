@@ -4,6 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
+ExecStartPre=/usr/bin/picar-car.pre
 ExecStart=/usr/bin/picar-car
 Restart=on-failure
 

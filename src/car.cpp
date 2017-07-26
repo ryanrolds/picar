@@ -319,10 +319,12 @@ void theLoop(int sock, char* buffer, raspicam::RaspiCam &Camera, int control) {
     
     // Send sensor to brain
     status = send(sock, frame, frameSize, 0);
-    //std::cout << "Status: " << std::dec <<  status << std::endl;
     if (status < 0) {
-      // break;	    
-      // TODO handle error
+      throw std::runtime_error("Error sending frame" + std::string(strerror(errno)));
+    }
+
+    if (status != frameSize) {
+      std::cout << "Sent bytes does not match framesize " + status << std::endl;
     }
 
     //std::cout << "Sent frame" << std::endl;

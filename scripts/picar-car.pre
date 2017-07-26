@@ -1,0 +1,6 @@
+#!/bin/bash
+/usr/local/bin/gpio export 17 OUTPUT
+/usr/local/bin/gpio export 27 OUTPUT
+/usr/local/bin/gpio export 23 OUTPUT
+/usr/local/bin/gpio export 24 OUTPUT
+/usr/local/bin/gpio export 22 INPUT
