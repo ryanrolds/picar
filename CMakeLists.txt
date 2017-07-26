@@ -41,4 +41,4 @@ target_link_libraries(picar-car pthread wiringPi ${raspicam_LIBS})
 #target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})
 
 install(TARGETS picar-brain picar-car DESTINATION bin)
-install(PROGRAMS scripts/picar-brain.pre DESTINATION bin)
+install(PROGRAMS scripts/picar-car.pre DESTINATION bin)
