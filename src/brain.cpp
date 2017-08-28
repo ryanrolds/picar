@@ -10,6 +10,8 @@
 #include <vector>
 #include <ctime>
 #include <algorithm>
+#include <memory>
+#include <tuple>
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -19,17 +21,30 @@
 #include <netdb.h>
 #include <unistd.h>
 
+#include <caffe/caffe.hpp>
+#include <opencv2/opencv.hpp>
+
 #define MAXBUF 65536
 #define BROADCASTPORT 7492
 #define SERVERPORT 7493
+
+typedef std::pair<std::string, float> Prediction;
+
 bool quit = false;
 unsigned sinlen = sizeof(struct sockaddr_in);  
 const bool DEBUG = false;
+
+std::string model_file = "./share/net.model";
+std::string trained_file = "./share/net.weights";
+std::string mean_file = "./share/net.avg";
+
 
 std::vector<std::thread> brains;
 
 int discoveryHost();
 int brainHost(int);
+int setupCaffe();
+std::shared_ptr<caffe::Net<float>> setupNet();
 void writeFrame(char*, unsigned int, unsigned int, unsigned int, int);
 
 static void sigint_catch(int signo) {
@@ -41,7 +56,7 @@ int main(int argc, const char** argv) {
   if (signal(SIGINT, sigint_catch) == SIG_ERR) {
     return EXIT_FAILURE;
   }
-
+  
   // Start loop that will handle discovery
   int result = discoveryHost();
   // TODO should exit successfully
@@ -128,10 +143,80 @@ int discoveryHost() {
   close(sock);
 }
 
+std::shared_ptr<caffe::Net<float>> setupNet() {
+  caffe::Caffe::set_mode(caffe::Caffe::CPU); 
+
+  std::shared_ptr<caffe::Net<float>> net;  
+  
+  /* Load the network. */
+  net.reset(new caffe::Net<float>(model_file, caffe::TEST));
+  net->CopyTrainedLayersFrom(trained_file);
+
+  //CHECK_EQ(net->num_inputs(), 1) << "Network should have exactly one input.";
+  //CHECK_EQ(net->num_outputs(), 1) << "Network should have exactly one output.";
+
+  // Prep net
+  caffe::Blob<float>* input_layer = net->input_blobs()[0];
+  input_layer->Reshape(1, input_layer->channels(), input_layer->height(), input_layer->width());
+  net->Reshape();
+  
+  return net;
+}
+
+cv::Mat setupMean(caffe::Blob<float>* input_layer) {
+    // Mean file
+  caffe::BlobProto blob_proto;
+  ReadProtoFromBinaryFileOrDie(mean_file.c_str(), &blob_proto);
+
+  /* Convert from BlobProto to Blob<float> */
+  caffe::Blob<float> mean_blob;
+  mean_blob.FromProto(blob_proto);
+
+  /* The format of the mean file is planar 32-bit float BGR or grayscale. */
+  std::vector<cv::Mat> channels;
+  
+  float* data = mean_blob.mutable_cpu_data();
+  for (int i = 0; i < input_layer->channels(); ++i) {
+    /* Extract an individual channel. */
+    cv::Mat channel(mean_blob.height(), mean_blob.width(), CV_32FC1, data);
+    channels.push_back(channel);
+    data += mean_blob.height() * mean_blob.width();
+  }
+
+  /* Merge the separate channels into a single image. */
+  cv::Mat mean;
+  cv::merge(channels, mean);
+
+  /* Compute the global mean pixel value and create a mean image
+   * filled with this value. */
+  cv::Scalar channel_mean = cv::mean(mean);
+  return cv::Mat(cv::Size(input_layer->width(), input_layer->height()), mean.type(), channel_mean);  
+}
+
+void setupInputLayer(caffe::Blob<float>* input_layer, std::vector<cv::Mat>* input_channels) {
+  int width = input_layer->width();
+  int height = input_layer->height();
+  float* input_data = input_layer->mutable_cpu_data();
+  for (int i = 0; i < input_layer->channels(); ++i) {
+    cv::Mat channel(height, width, CV_32FC1, input_data);
+    input_channels->push_back(channel);
+    input_data += width * height;
+  }
+}
+
 int brainHost(int sock) {
   struct sockaddr_in client_addr;
   memset(&client_addr, 0, sinlen); 
+
+  std::cout << "Preparing net..." << std::endl;
   
+  // Setup CNN and other classification objects
+  std::shared_ptr<caffe::Net<float>> net = setupNet();
+  caffe::Blob<float>* input_layer = net->input_blobs()[0];
+  cv::Mat mean = setupMean(input_layer);
+  std::vector<cv::Mat> input_channels;
+  setupInputLayer(input_layer, &input_channels);
+    
   std::cout << "Accepting connection..." << std::endl;
   
   int client = accept(sock, (struct sockaddr *)&client_addr, &sinlen);
@@ -201,8 +286,7 @@ int brainHost(int sock) {
   int frameCounter = 0;
   int obstacle = 0;
   int unstuck = 0;
-
-  
+ 
   while (true) {
     //std::cout << "tick" << std::endl;
     
@@ -253,39 +337,68 @@ int brainHost(int sock) {
       //std::cout << "Getting frame" << std::dec << pos << std::endl;
     }
 
-    //fclose(networkFile);
+    //fclose(networkFile);    
 
+    buffer[0] = 0; // Center	
+    buffer[1] = 128; // Forward 
+    
     if (pos < frameSize) {
       std::cout << "Wrong frame size " << pos << std::endl;
-    }
-
-    // Write collected frame to disk
-    if (counter % 20 == 0) {
-      writeFrame(frame, frameSize, frameWidth, frameHeight, frameCounter);
-      frameCounter++;
-    }
-
-    if (obstacle > 0) {
-      buffer[0] = 1; // Left	
-      buffer[1] = 1; // Back
-
-      obstacle -= 1;
-    } else if (unstuck > 0) {
-      buffer[0] = 128; // Left	
-      buffer[1] = 1; // Back
-
-      unstuck -= 1;      
     } else {
-      buffer[0] = 0; // Center	
-      buffer[1] = 128; // Forward 
-    } 
-    
+
+      cv::Mat image = cv::Mat(frameWidth, frameHeight, CV_8UC3, frame);
+      cv::Mat imageResized;
+      cv::resize(image, imageResized, cv::Size(input_layer->width(), input_layer->height()));
+
+      cv::Mat sample_float;
+      imageResized.convertTo(sample_float, CV_32FC3);
+
+      cv::Mat sample_normalized;
+      cv::subtract(sample_float, mean, sample_normalized);
+
+      /* This operation will write the separate BGR planes directly to the
+       * input layer of the network because it is wrapped by the cv::Mat
+       * objects in input_channels. */
+      cv::split(sample_normalized, input_channels);      
+
+      net->Forward();
+
+      // Get predictions
+      caffe::Blob<float>* output_layer = net->output_blobs()[0];
+      const float* begin = output_layer->cpu_data();
+      const float* end = begin + output_layer->channels();
+      std::vector<float> predictions(begin, end);
+
+      /* Print the top N predictions. */
+      for (size_t i = 0; i < predictions.size(); ++i) {
+	std::cout << std::fixed << std::setprecision(4) << predictions[i] << std::endl;
+      }      
+      
+      // Write collected frame to disk
+      if (counter % 20 == 0) {
+	writeFrame(frame, frameSize, frameWidth, frameHeight, frameCounter);
+	frameCounter++;
+      }
+
+      if (obstacle > 0) {
+	buffer[0] = 1; // Left	
+	buffer[1] = 1; // Back
+
+	obstacle -= 1;
+      } else if (unstuck > 0) {
+	buffer[0] = 128; // Left	
+	buffer[1] = 1; // Back
+
+	unstuck -= 1;      
+      }
+    }
+
     // Send command   
     int status = send(client, buffer, 2, 0);
     if (status < 0) {
       throw std::runtime_error("Error: " + std::string(strerror(errno)));
-    }
-
+    }      
+    
     if (DEBUG) {
       std::cout << "tock" << std::endl;
     } else if (counter % 10 == 0) {

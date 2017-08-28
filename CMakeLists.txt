@@ -25,16 +25,28 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # Picar
 project(picar)
 
+add_definitions(-DCPU_ONLY)
+
+configure_file(share/net.model share/net.model COPYONLY)
+configure_file(share/net.weights share/net.weights COPYONLY)
+configure_file(share/net.avg share/net.avg COPYONLY)
+
+find_package(OpenCV REQUIRED)
 find_package(raspicam REQUIRED)
-#find_package(OpenCV REQUIRED)
- 
+#find_package(Caffe REQUIRED)
+
 add_executable(picar-brain src/brain.cpp)
-target_link_libraries(picar-brain pthread)
+target_link_libraries(picar-brain pthread caffe boost_system glog ${OpenCV_LIBS})
 
 add_executable(picar-car src/car.cpp src/control.cpp src/senses.cpp)
 target_link_libraries(picar-car pthread wiringPi ${raspicam_LIBS})
 
+# Old, switching to Cafee - here for reference
+#find_package(OpenCV REQUIRED)
+
+# Old, pre car+brain refactor - here for reference
 #add_executable(picar src/main.cpp src/detect.cpp src/control.cpp src/senses.cpp)
 #target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})
 
 install(TARGETS picar-brain picar-car DESTINATION bin)
+install(PROGRAMS scripts/picar-car.pre DESTINATION bin)
