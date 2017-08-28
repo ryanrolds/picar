@@ -12,5 +12,6 @@ int setupSenses() {
 
 bool hasObstacle() {
   int value = digitalRead(OBJ_PIN);  
-  return value == 0;
+  //return value == 0;
+  return false;
 }
