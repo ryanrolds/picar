@@ -368,11 +368,61 @@ int brainHost(int sock) {
       const float* begin = output_layer->cpu_data();
       const float* end = begin + output_layer->channels();
       std::vector<float> predictions(begin, end);
-
+      
       /* Print the top N predictions. */
+      float best = 0.0f;
+      int bestLabel = 0;
       for (size_t i = 0; i < predictions.size(); ++i) {
-	std::cout << std::fixed << std::setprecision(4) << predictions[i] << std::endl;
-      }      
+	if (predictions[i] > best) {
+	  best = predictions[i];
+	  bestLabel = i;
+	}
+	
+	std::cout << i << ": " << std::fixed << std::setprecision(4) << predictions[i] << std::endl;
+      }
+	  
+      std::cout << "Best: " << bestLabel << " " << std::fixed << std::setprecision(4) << best << std::endl;
+
+      switch(bestLabel) {
+      case 0:
+	buffer[0] = 0; // Center	
+	buffer[1] = 1; // Back
+	break;
+      case 1:
+	buffer[0] = 128; // Left
+	buffer[1] = 1; // Back
+	break;
+      case 2:
+	buffer[0] = -127; // Right
+	buffer[1] = 128; // Forward 
+	break;
+      case 3:
+	buffer[0] = -63; // Center
+	buffer[1] = 128; // Forward
+	break;
+      case 4:
+	buffer[0] = 0; // Slight Left
+	buffer[1] = 128; // Forward
+	break;
+      case 5:
+	buffer[0] = 64; // Slight Left
+	buffer[1] = 128; // Forward 	
+	break;
+      case 6:
+	buffer[0] = 128; // Left
+	buffer[1] = 128; // Forward 	
+	break;
+      case 7:
+	buffer[0] = -127; // Right
+	buffer[1] = 1; // Backward
+	break;
+      case 8:
+	buffer[0] = 0; // Center	
+	buffer[1] = 1; // Back
+	break;
+      default:
+	throw std::runtime_error("Invalid class");
+      }
       
       // Write collected frame to disk
       if (counter % 20 == 0) {

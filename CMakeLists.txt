@@ -27,9 +27,9 @@ project(picar)
 
 add_definitions(-DCPU_ONLY)
 
-configure_file(share/net.model share/net.model COPYONLY)
-configure_file(share/net.weights share/net.weights COPYONLY)
-configure_file(share/net.avg share/net.avg COPYONLY)
+configure_file(share/v3/net.model share/net.model COPYONLY)
+configure_file(share/v3/net.weights share/net.weights COPYONLY)
+configure_file(share/v3/net.avg share/net.avg COPYONLY)
 
 find_package(OpenCV REQUIRED)
 find_package(raspicam REQUIRED)
