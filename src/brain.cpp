@@ -190,6 +190,10 @@ cv::Mat setupMean(caffe::Blob<float>* input_layer) {
   /* Compute the global mean pixel value and create a mean image
    * filled with this value. */
   cv::Scalar channel_mean = cv::mean(mean);
+
+  std::cout << mean.cols << " " << mean.rows << std::endl;
+  std::cout << input_layer->width() << " " << input_layer->height() << std::endl;
+  
   return cv::Mat(cv::Size(input_layer->width(), input_layer->height()), mean.type(), channel_mean);  
 }
 
@@ -346,20 +350,23 @@ int brainHost(int sock) {
       std::cout << "Wrong frame size " << pos << std::endl;
     } else {
 
-      cv::Mat image = cv::Mat(frameWidth, frameHeight, CV_8UC3, frame);
-      cv::Mat imageResized;
-      cv::resize(image, imageResized, cv::Size(input_layer->width(), input_layer->height()));
+      cv::Mat image = cv::Mat(frameHeight, frameWidth, CV_8UC3, frame);
+      cv::Mat imageFloat;
+      image.convertTo(imageFloat, CV_32FC3);
 
-      cv::Mat sample_float;
-      imageResized.convertTo(sample_float, CV_32FC3);
+      cv::Mat resized = imageFloat(cv::Rect(46, 6, 227, 227));     
+      cv::Mat normalized;
+      cv::subtract(resized, mean, normalized);
+           
+      std::cout << normalized.cols << std::endl;
+      std::cout << normalized.rows << std::endl;
 
-      cv::Mat sample_normalized;
-      cv::subtract(sample_float, mean, sample_normalized);
-
+      cv::cvtColor(normalized, normalized, CV_RGB2BGR);
+            
       /* This operation will write the separate BGR planes directly to the
        * input layer of the network because it is wrapped by the cv::Mat
        * objects in input_channels. */
-      cv::split(sample_normalized, input_channels);      
+      cv::split(normalized, input_channels);      
 
       net->Forward();
 
