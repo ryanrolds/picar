@@ -264,7 +264,7 @@ void prepareCamera(raspicam::RaspiCam &Camera) {
   Camera.setVerticalFlip(true);
   Camera.setHorizontalFlip(true);
   Camera.setExposure(raspicam::RASPICAM_EXPOSURE_AUTO); // Max 30
-  Camera.setFormat(raspicam::RASPICAM_FORMAT_RGB);
+  //Camera.setFormat(raspicam::RASPICAM_FORMAT_RGB);
   
   if (!Camera.open()) {
     throw std::runtime_error("Error: Unable to open camera");

@@ -15,7 +15,7 @@ include_directories(raspicam-0.1.6/src)
 make_directory(bin)
 make_directory(logs)
 
-file(COPY share/visionary.net_cat_cascade_web_LBP.xml DESTINATION share/picar)
+#file(COPY share/visionary.net_cat_cascade_web_LBP.xml DESTINATION share/picar)
 
 # Set output dirs
 #set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -27,16 +27,16 @@ project(picar)
 
 add_definitions(-DCPU_ONLY)
 
-configure_file(share/net.model share/net.model COPYONLY)
-configure_file(share/net.weights share/net.weights COPYONLY)
-configure_file(share/net.avg share/net.avg COPYONLY)
+#configure_file(share/net.model share/net.model COPYONLY)
+#configure_file(share/net.weights share/net.weights COPYONLY)
+#configure_file(share/net.avg share/net.avg COPYONLY)
 
-find_package(OpenCV REQUIRED)
+#find_package(OpenCV REQUIRED)
 find_package(raspicam REQUIRED)
 #find_package(Caffe REQUIRED)
 
-add_executable(picar-brain src/brain.cpp)
-target_link_libraries(picar-brain pthread caffe boost_system glog ${OpenCV_LIBS})
+#add_executable(picar-brain src/brain.cpp)
+#target_link_libraries(picar-brain pthread caffe boost_system glog ${OpenCV_LIBS})
 
 add_executable(picar-car src/car.cpp src/control.cpp src/senses.cpp)
 target_link_libraries(picar-car pthread wiringPi ${raspicam_LIBS})
@@ -48,5 +48,5 @@ target_link_libraries(picar-car pthread wiringPi ${raspicam_LIBS})
 #add_executable(picar src/main.cpp src/detect.cpp src/control.cpp src/senses.cpp)
 #target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})
 
-install(TARGETS picar-brain picar-car DESTINATION bin)
+#install(TARGETS picar-brain picar-car DESTINATION bin)
 install(PROGRAMS scripts/picar-car.pre DESTINATION bin)
