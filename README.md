@@ -23,11 +23,14 @@ At this time
 * Write image collector and write to NAS
 * Write image classifier (wheel and speed)
 * Integrate IR Obst. Sensor (car)
+* Train NN/RNN using classified image data
+* Car being driven by CNN
 
 ### TODO
 
+* Repair IR Obst. and save sensor data in image
+* Update classifiaction program to highlight images with obst.
 * Get 10k frames classified
-* Train NN/RNN using classified image data
 * Create behavior tree (car)
 
 ## Setup
@@ -37,6 +40,7 @@ Dependencies:
 * https://sourceforge.net/projects/raspicam/files/
 * http://opencv.org/ (3.1.0)
 * http://wiringpi.com/download-and-install/
+* http://caffe.berkeleyvision.org/
 
 ## Build
 
