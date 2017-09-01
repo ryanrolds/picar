@@ -45,7 +45,7 @@ int discoveryHost();
 int brainHost(int);
 int setupCaffe();
 std::shared_ptr<caffe::Net<float>> setupNet();
-void writeFrame(char*, unsigned int, unsigned int, unsigned int, int);
+void writeFrame(char*, unsigned int, unsigned int, unsigned int, int, int);
 
 static void sigint_catch(int signo) {
   std::cout << "Caught " << signo << std::endl;
@@ -388,7 +388,7 @@ int brainHost(int sock) {
 	//std::cout << i << ": " << std::fixed << std::setprecision(4) << predictions[i] << std::endl;
       }
 
-      std::cout << "Best: " << bestLabel << " " << std::fixed << std::setprecision(4) << best << std::endl;
+      // std::cout << "Best: " << bestLabel << " " << std::fixed << std::setprecision(4) << best << std::endl;
 
       switch(bestLabel) {
       case 0:
@@ -432,11 +432,17 @@ int brainHost(int sock) {
       default:
 	throw std::runtime_error("Invalid class");
       }
-
-      // Write collected frame to disk
-      if (counter % 20 == 0) {
-	writeFrame(frame, frameSize, frameWidth, frameHeight, frameCounter);
-	frameCounter++;
+      
+      if (obstacle > 0) {
+	buffer[0] = 1; // Left
+	buffer[1] = 1; // Back
+	
+	obstacle -= 1;	  
+      } else if (unstuck > 0) {
+	buffer[0] = 128; // Left
+	buffer[1] = 1; // Back
+	
+	unstuck -= 1;
       }
 
       if (counter < 5) {
@@ -461,26 +467,18 @@ int brainHost(int sock) {
 	buffer[0] = -127;
 	buffer[1] = 0;
       }
-
-      /*
-      if (obstacle > 0) {
-	buffer[0] = 1; // Left
-	buffer[1] = 1; // Back
-
-	obstacle -= 1;
-      } else if (unstuck > 0) {
-	buffer[0] = 128; // Left
-	buffer[1] = 1; // Back
-
-	unstuck -= 1;
-      }
-      */
     }
-
+    
     // Send command
     int status = send(client, buffer, 2, 0);
     if (status < 0) {
       throw std::runtime_error("Error: " + std::string(strerror(errno)));
+    }
+
+    // Write collected frame to disk
+    if (counter % 20 == 0 || obstacle > 0) {
+      writeFrame(frame, frameSize, frameWidth, frameHeight, frameCounter, obstacle);
+      frameCounter++;
     }
 
     if (DEBUG) {
@@ -495,7 +493,7 @@ int brainHost(int sock) {
   std::cout << "Brain loop complete" << std::endl;
 };
 
-void writeFrame(char* frame, unsigned int frameSize, unsigned int frameWidth, unsigned int frameHeight, int counter) {
+void writeFrame(char* frame, unsigned int frameSize, unsigned int frameWidth, unsigned int frameHeight, int counter, int obstacle) {
   char buffer[MAXBUF];
   //memset(buffer, 0, MAXBUF);
 
@@ -514,7 +512,7 @@ void writeFrame(char* frame, unsigned int frameSize, unsigned int frameWidth, un
   std::replace( frameFilename.begin(), frameFilename.end(), ':', '-');
 
   FILE* frameFile = fopen(frameFilename.c_str(), "w");
-  sprintf(buffer, "P6\n%d %d %d\n", frameWidth, frameHeight, 255);
+  sprintf(buffer, "P6\n%d %d %d\n#ObsSensor:%d\n", frameWidth, frameHeight, 255, obstacle);
   // Header
   fwrite(buffer, sizeof(char), strlen(buffer), frameFile);
   // Data
