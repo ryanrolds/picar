@@ -83,7 +83,7 @@ int discoveryHost() {
   std::cout << "Bind Status: " << status << std::endl;
 
   status = getsockname(sock, (struct sockaddr *)&sock_in, &sinlen);
-  std::cout << "Sock port: " << htons(sock_in.sin_port) << std::endl;
+  std::cout << "Sock port: " << std::to_string(ntohs(sock_in.sin_port)) << std::endl;
 
   // Set recvfrom time out to 1 sec
   struct timeval read_timeout;
@@ -128,7 +128,7 @@ int discoveryHost() {
     listen(brain_sock, 0);
 
     status = getsockname(brain_sock, (struct sockaddr *)&brain_sock_in, &sinlen);
-    std::cout << "Brain sock port " << htons(brain_sock_in.sin_port) << std::endl;
+    std::cout << "Brain sock port " << std::to_string(ntohs(brain_sock_in.sin_port)) << std::endl;
 
     // Create thread and add to vector
     brains.push_back(std::thread(brainHost, brain_sock));
