@@ -27,19 +27,22 @@ project(picar)
 
 add_definitions(-DCPU_ONLY)
 
-configure_file(share/v4/net.model share/net.model COPYONLY)
-configure_file(share/v4/net.weights share/net.weights COPYONLY)
-configure_file(share/v4/net.avg share/net.avg COPYONLY)
+#configure_file(share/v4/net.model share/net.model COPYONLY)
+#configure_file(share/v4/net.weights share/net.weights COPYONLY)
+#configure_file(share/v4/net.avg share/net.avg COPYONLY)
 
-find_package(OpenCV REQUIRED)
+#find_package(OpenCV REQUIRED)
 find_package(raspicam REQUIRED)
-#find_package(Caffe REQUIRED)
+find_package(Caffe2 REQUIRED)
 
 add_executable(picar-brain src/brain.cpp)
-target_link_libraries(picar-brain pthread caffe boost_system glog ${OpenCV_LIBS})
+target_link_libraries(picar-brain pthread caffe2 boost_system glog)
 
 add_executable(picar-car src/car.cpp src/control.cpp src/senses.cpp)
 target_link_libraries(picar-car pthread wiringPi ${raspicam_LIBS})
+
+add_executable(lidar-test src/lidar.cpp)
+target_link_libraries(lidar-test pthread bcm2835)
 
 # Old, switching to Cafee - here for reference
 #find_package(OpenCV REQUIRED)
