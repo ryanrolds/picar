@@ -25,12 +25,15 @@ At this time
 * Integrate IR Obst. Sensor (car)
 * Train NN/RNN using classified image data
 * Car being driven by CNN
+* Repair IR Obst. and save sensor data in image
+* Get 10k frames classified
 
 ### TODO
 
-* Repair IR Obst. and save sensor data in image
+* Try taking AlexNet weights, cutting off unneded output layer nodes, freezing all layers but the output layer and retrain
+* Intergrator Lidar module
+* Switch to Caffe2
 * Update classifiaction program to highlight images with obst.
-* Get 10k frames classified
 * Create behavior tree (car)
 
 ## Setup
