@@ -1,0 +1,9 @@
+[submodule "caffe2"]
+	path = caffe2
+	url = https://github.com/caffe2/caffe2.git
+[submodule "raspicam"]
+	path = raspicam
+	url = git@github.com:cedricve/raspicam.git
+[submodule "wiringPi"]
+	path = wiringPi
+	url = git://git.drogon.net/wiringPi

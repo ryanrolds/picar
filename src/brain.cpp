@@ -270,6 +270,7 @@ int brainHost(int sock) {
   int frameCounter = 0;
   int obstacle = 0;
   int unstuck = 0;
+  int unstuckCounter = 0;
 
   while (true) {
     //std::cout << "tick" << std::endl;
@@ -291,6 +292,7 @@ int brainHost(int sock) {
       obstacle = 10;
     } else if (counter % 100 == 0) {
       unstuck = 10;
+      unstuckCounter++;
     }
 
     unsigned int pos = 0;
@@ -438,7 +440,13 @@ int brainHost(int sock) {
       	obstacle -= 1;	  
       } else if (unstuck > 0) {
       	buffer[0] = 128; // Left
-      	buffer[1] = 1; // Back
+
+        // Every few unstuck cycles move forward instead
+        if (unstuckCounter % 3 == 0) {
+          buffer[1] = 128; // Forward
+        } else {
+          buffer[1] = 1; // Back
+        }
 	
       	unstuck -= 1;
       }
