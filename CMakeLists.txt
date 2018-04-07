@@ -10,6 +10,10 @@ add_compile_options(-std=c++11)
 # Search for 
 include_directories(include)
 include_directories(raspicam-0.1.6/src)
+include_directories(/usr/local/include/eigen3)
+include_directories(/usr/local/include/tf)
+include_directories(/usr/local/include/tf/bazel-genfiles)
+include_directories(/usr/local/include/tf/third_party)
 
 # Create bin, and logs
 make_directory(bin)
@@ -31,12 +35,16 @@ configure_file(share/v4/net.model share/net.model COPYONLY)
 configure_file(share/v4/net.weights share/net.weights COPYONLY)
 configure_file(share/v4/net.avg share/net.avg COPYONLY)
 
-find_package(OpenCV REQUIRED)
+#find_package(OpenCV REQUIRED)
 find_package(raspicam REQUIRED)
 #find_package(Caffe REQUIRED)
+find_package(CUDA QUIET REQUIRED)
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
-add_executable(picar-brain src/brain.cpp)
-target_link_libraries(picar-brain pthread caffe boost_system glog ${OpenCV_LIBS})
+cuda_add_executable(picar-brain src/brain.cpp)
+target_link_libraries(picar-brain pthread protoc cudnn tensorflow_framework tensorflow_cc boost_system glog Eigen3::Eigen)
+
+
 
 add_executable(picar-car src/car.cpp src/control.cpp src/senses.cpp)
 target_link_libraries(picar-car pthread wiringPi ${raspicam_LIBS})

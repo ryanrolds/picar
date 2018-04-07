@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <memory>
 #include <tuple>
+#include <chrono>
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -21,8 +22,12 @@
 #include <netdb.h>
 #include <unistd.h>
 
-#include <caffe/caffe.hpp>
-#include <opencv2/opencv.hpp>
+#include "tensorflow/core/lib/core/status.h"
+#include "tensorflow/core/public/session.h"
+#include "tensorflow/cc/client/client_session.h"
+#include "tensorflow/cc/saved_model/loader.h"
+#include "tensorflow/cc/ops/standard_ops.h"
+#include "tensorflow/core/framework/tensor.h"
 
 #define MAXBUF 65536
 #define BROADCASTPORT 7492
@@ -43,8 +48,9 @@ std::vector<std::thread> brains;
 
 int discoveryHost();
 int brainHost(int);
-int setupCaffe();
-std::shared_ptr<caffe::Net<float>> setupNet();
+//int setupCaffe();
+
+void setupNet(tensorflow::ClientSession&);
 void writeFrame(char*, unsigned int, unsigned int, unsigned int, int, int);
 
 static void sigint_catch(int signo) {
@@ -56,6 +62,7 @@ int main(int argc, const char** argv) {
   if (signal(SIGINT, sigint_catch) == SIG_ERR) {
     return EXIT_FAILURE;
   }
+
 
   // Start loop that will handle discovery
   int result = discoveryHost();
@@ -143,69 +150,40 @@ int discoveryHost() {
   close(sock);
 }
 
-std::shared_ptr<caffe::Net<float>> setupNet() {
-  caffe::Caffe::set_mode(caffe::Caffe::CPU);
+void setupNet(tensorflow::SavedModelBundle& bundle) {
+  // Setup graph
+  const std::string exportDir = "./models";
+  tensorflow::SessionOptions sessOpts = tensorflow::SessionOptions();
+  tensorflow::RunOptions runOpts = tensorflow::RunOptions();
+  const std::unordered_set<std::string> tags = {"serve"};
+  tensorflow::Status opStatus = tensorflow::LoadSavedModel(
+    sessOpts, runOpts, exportDir, tags, &bundle
+  );
 
-  std::shared_ptr<caffe::Net<float>> net;
-
-  /* Load the network. */
-  net.reset(new caffe::Net<float>(model_file, caffe::TEST));
-  net->CopyTrainedLayersFrom(trained_file);
-
-  //CHECK_EQ(net->num_inputs(), 1) << "Network should have exactly one input.";
-  //CHECK_EQ(net->num_outputs(), 1) << "Network should have exactly one output.";
-
-  // Prep net
-  caffe::Blob<float>* input_layer = net->input_blobs()[0];
-  input_layer->Reshape(1, input_layer->channels(), input_layer->height(), input_layer->width());
-  net->Reshape();
-
-  return net;
-}
-
-cv::Mat setupMean(caffe::Blob<float>* input_layer) {
-    // Mean file
-  caffe::BlobProto blob_proto;
-  ReadProtoFromBinaryFileOrDie(mean_file.c_str(), &blob_proto);
-
-  /* Convert from BlobProto to Blob<float> */
-  caffe::Blob<float> mean_blob;
-  mean_blob.FromProto(blob_proto);
-
-  /* The format of the mean file is planar 32-bit float BGR or grayscale. */
-  std::vector<cv::Mat> channels;
-
-  float* data = mean_blob.mutable_cpu_data();
-  for (int i = 0; i < input_layer->channels(); ++i) {
-    /* Extract an individual channel. */
-    cv::Mat channel(mean_blob.height(), mean_blob.width(), CV_32FC1, data);
-    channels.push_back(channel);
-    data += mean_blob.height() * mean_blob.width();
+  if (!opStatus.ok()) {
+    std::cout << "Error " << opStatus.ToString() << "\n";
+    throw std::runtime_error(opStatus.ToString());
   }
 
-  /* Merge the separate channels into a single image. */
-  cv::Mat mean;
-  cv::merge(channels, mean);
+  //tensorflow::LoadGraph("./graph.pb", session)
 
-  /* Compute the global mean pixel value and create a mean image
-   * filled with this value. */
-  cv::Scalar channel_mean = cv::mean(mean);
-
-  //std::cout << mean.cols << " " << mean.rows << std::endl;
-  //std::cout << input_layer->width() << " " << input_layer->height() << std::endl;
-
-  return cv::Mat(cv::Size(input_layer->width(), input_layer->height()), mean.type(), channel_mean);
-}
-
-void setupInputLayer(caffe::Blob<float>* input_layer, std::vector<cv::Mat>* input_channels) {
-  int width = input_layer->width();
-  int height = input_layer->height();
-  float* input_data = input_layer->mutable_cpu_data();
-  for (int i = 0; i < input_layer->channels(); ++i) {
-    cv::Mat channel(height, width, CV_32FC1, input_data);
-    input_channels->push_back(channel);
-    input_data += width * height;
+  /*
+  tensorflow::Session* session;
+  tensorflow::Status status = tensorflow::NewSession(tensorflow::SessionOptions(), &session);
+  if (!status.ok()) {
+    std::cout << status.ToString() << std::endl;
+    throw std::runtime_error("Error: " + status.ToString());
   }
+
+  tensorflow::GraphDef graphDef;
+  status = tensorflow::ReadBinaryProto(tensorflow::Env::Default(), "", &graphDef);
+  if (!status.ok()) {
+    std::cout << status.ToString() << std::endl;
+    throw std::runtime_error("Error: " + status.ToString());
+  }
+
+  return session;
+  */
 }
 
 int brainHost(int sock) {
@@ -215,11 +193,13 @@ int brainHost(int sock) {
   std::cout << "Preparing net..." << std::endl;
 
   // Setup CNN and other classification objects
-  std::shared_ptr<caffe::Net<float>> net = setupNet();
-  caffe::Blob<float>* input_layer = net->input_blobs()[0];
-  cv::Mat mean = setupMean(input_layer);
+  tensorflow::SavedModelBundle bundle;
+  setupNet(bundle);
+
+  //caffe::Blob<float>* input_layer = net->input_blobs()[0];
+  //cv::Mat mean = setupMean(input_layer);
   std::vector<cv::Mat> input_channels;
-  setupInputLayer(input_layer, &input_channels);
+  //setupInputLayer(input_layer, &input_channels);
 
   std::cout << "Accepting connection..." << std::endl;
 
@@ -350,16 +330,18 @@ int brainHost(int sock) {
       std::cout << "Wrong frame size " << pos << std::endl;
     } else {
 
+
       cv::Mat image = cv::Mat(frameHeight, frameWidth, CV_8UC3, frame);
       cv::Mat imageFloat;
       image.convertTo(imageFloat, CV_32FC3);
-
+      // TODO double check the offset
       cv::Mat resized = imageFloat(cv::Rect(46, 6, 227, 227));
+
       cv::Mat normalized;
       cv::subtract(resized, mean, normalized);
 
-      //std::cout << normalized.cols << std::endl;
-      //std::cout << normalized.rows << std::endl;
+      std::cout << normalized.cols << std::endl;
+      std::cout << normalized.rows << std::endl;
 
       cv::cvtColor(normalized, normalized, CV_RGB2BGR);
 
@@ -368,25 +350,41 @@ int brainHost(int sock) {
        * objects in input_channels. */
       cv::split(normalized, input_channels);
 
-      net->Forward();
+      std::chrono::time_point<std::chrono::steady_clock> netprepTime = std::chrono::steady_clock::now();
+
+
+      auto x(tensorflow::DT_FLOAT, tensorflow::TensorShape({1, 227, 227, 3}));
+      auto x_mapped = x.tensor<float, 4>();
+
+      // TODO iterator input_channels and write to x_mapped
+
+      const std::vector<std::pair<std::string, tensorflow::Tensor>> inputs = {{"x", x}};
+      const std::vector<std::string> outputNames = {"score"};
+      const std::vector<std::string> nodeNames = {"score"};
+      std::vector<tensorflow::Tensor> outputs;
+      tensorflow::Status s = bundle.session->Run(inputs, outputNames, nodeNames, &outputs);
+
+      //net->Forward();
 
       // Get predictions
-      caffe::Blob<float>* output_layer = net->output_blobs()[0];
-      const float* begin = output_layer->cpu_data();
-      const float* end = begin + output_layer->channels();
-      std::vector<float> predictions(begin, end);
+      //caffe::Blob<float>* output_layer = net->output_blobs()[0];
+      //const float* begin = output_layer->cpu_data();
+      //const float* end = begin + output_layer->channels();
+      //std::vector<float> predictions(begin, end);
 
       /* Print the top N predictions. */
       float best = 0.0f;
       int bestLabel = 0;
+      /*
       for (size_t i = 0; i < predictions.size(); ++i) {
-	if (predictions[i] > best) {
-	  best = predictions[i];
-	  bestLabel = i;
-	}
+      	if (predictions[i] > best) {
+      	  best = predictions[i];
+      	  bestLabel = i;
+	      }
 
-	//std::cout << i << ": " << std::fixed << std::setprecision(4) << predictions[i] << std::endl;
+	      //std::cout << i << ": " << std::fixed << std::setprecision(4) << predictions[i] << std::endl;
       }
+      */
 
       // std::cout << "Best: " << bestLabel << " " << std::fixed << std::setprecision(4) << best << std::endl;
 
@@ -394,78 +392,78 @@ int brainHost(int sock) {
       case 0:
       case 1:
       case 7:
-	buffer[0] = 0; // Center
-	buffer[1] = 1; // Back
-	break;
-	//case 1:
-	//buffer[0] = 128; // Left
-	//buffer[1] = 1; // Back
-	//break;
+      	buffer[0] = 0; // Center
+	      buffer[1] = 1; // Back
+	      break;
+	    //case 1:
+	      //buffer[0] = 128; // Left
+	      //buffer[1] = 1; // Back
+	      //break;
       case 2:
-	buffer[0] = -127; // Right
-	buffer[1] = 128; // Forward
-	break;
+	      buffer[0] = -127; // Right
+	      buffer[1] = 128; // Forward
+	      break;
       case 3:
-	buffer[0] = -63; // Slight right
-	buffer[1] = 128; // Forward
-	break;
+	      buffer[0] = -63; // Slight right
+	      buffer[1] = 128; // Forward
+	      break;
       case 4:
-	buffer[0] = 0; // Center
-	buffer[1] = 128; // Forward
-	break;
+      	buffer[0] = 0; // Center
+      	buffer[1] = 128; // Forward
+      	break;
       case 5:
-	buffer[0] = 64; // Slight Left
-	buffer[1] = 128; // Forward
-	break;
+      	buffer[0] = 64; // Slight Left
+      	buffer[1] = 128; // Forward
+      	break;
       case 6:
-	buffer[0] = 128; // Left
-	buffer[1] = 128; // Forward
-	break;
-	//case 7:
-	//buffer[0] = -127; // Right
-	//buffer[1] = 1; // Backward
-	//break;
+      	buffer[0] = 128; // Left
+      	buffer[1] = 128; // Forward
+      	break;
+    	//case 7:
+      	//buffer[0] = -127; // Right
+      	//buffer[1] = 1; // Backward
+      	//break;
       case 8:
-	buffer[0] = 0; // Center
-	buffer[1] = 1; // Back
-	break;
+      	buffer[0] = 0; // Center
+      	buffer[1] = 1; // Back
+      	break;
       default:
-	throw std::runtime_error("Invalid class");
+      	throw std::runtime_error("Invalid class");
       }
       
       if (obstacle > 0) {
-	buffer[0] = 1; // Left
-	buffer[1] = 1; // Back
+      	buffer[0] = 1; // Left
+      	buffer[1] = 1; // Back
 	
-	obstacle -= 1;	  
+      	obstacle -= 1;	  
       } else if (unstuck > 0) {
-	buffer[0] = 128; // Left
-	buffer[1] = 1; // Back
+      	buffer[0] = 128; // Left
+      	buffer[1] = 1; // Back
 	
-	unstuck -= 1;
+      	unstuck -= 1;
       }
 
       if (counter < 5) {
-	buffer[0] = 0;
-	buffer[1] = 128;
+      	buffer[0] = 0;
+      	buffer[1] = 128;
       } else if (counter < 10) {
-	buffer[0] = 0;
-	buffer[1] = 1;
+      	buffer[0] = 0;
+      	buffer[1] = 1;
       } else if (counter < 15) {
-	buffer[0] = 128;
-	buffer[1] = 0;
+      	buffer[0] = 128;
+      	buffer[1] = 0;
       } else if (counter < 20) {
-	buffer[0] = 64;
-	buffer[1] = 0;
+      	buffer[0] = 64;
+      	buffer[1] = 0;
       } else if (counter < 25) {
-	buffer[0] = 0;
-	buffer[1] = 0;
+      	buffer[0] = 0;
+      	buffer[1] = 0;
       } else if (counter < 30) {
-	buffer[0] = -63;
-	buffer[1] = 0;
+      	buffer[0] = -63;
+      	buffer[1] = 0;
       } else if (counter < 35) {
-	buffer[0] = -127;
-	buffer[1] = 0;
+      	buffer[0] = -127;
+      	buffer[1] = 0;
       }
     }
     
