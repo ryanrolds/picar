@@ -40,17 +40,10 @@ bool quit = false;
 unsigned sinlen = sizeof(struct sockaddr_in);
 const bool DEBUG = false;
 
-std::string model_file = "./share/net.model";
-std::string trained_file = "./share/net.weights";
-std::string mean_file = "./share/net.avg";
-
-
 std::vector<std::thread> brains;
 
 int discoveryHost();
 int brainHost(int);
-//int setupCaffe();
-
 void setupNet(tensorflow::ClientSession&);
 void writeFrame(char*, unsigned int, unsigned int, unsigned int, int, int);
 
@@ -152,6 +145,7 @@ int discoveryHost() {
 }
 
 void setupNet(tensorflow::SavedModelBundle& bundle) {
+  // Load predication graph
   const std::string exportDir = "./models";
   tensorflow::SessionOptions sessOpts = tensorflow::SessionOptions();
   tensorflow::RunOptions runOpts = tensorflow::RunOptions();
@@ -180,10 +174,18 @@ int brainHost(int sock) {
   tensorflow::SavedModelBundle bundle;
   setupNet(bundle);
 
-  //caffe::Blob<float>* input_layer = net->input_blobs()[0];
-  //cv::Mat mean = setupMean(input_layer);
-  std::vector<cv::Mat> input_channels;
-  //setupInputLayer(input_layer, &input_channels);
+  // Prepare image graph
+  tensorflow::Scope root = tensorflow::Scope::NewRootScope();
+  // Keep probability
+  tensorflow::Tensor keepProb(tensorflow::DT_FLOAT, tensorflow::TensorShape({1}));
+  keepProb.vec<float>()(0) = 1.0f;
+
+  //std::string pngFile = "./frame_2017-07-25T21-04-31Z_910.png";
+  //std::string pngFile = "../../../picar/test/frame_2017-07-25T16-30-00Z_0.png";
+  
+  
+  std::vector<tensorflow::Tensor> image_outputs;
+  tensorflow::ClientSession session(root);
 
   std::cout << "Accepting connection..." << std::endl;
 
@@ -194,6 +196,8 @@ int brainHost(int sock) {
 
   char buffer[MAXBUF];
   memset(buffer, 0, MAXBUF);
+
+
 
   // Handshake
   int bytes = read(client, buffer, MAXBUF);
@@ -256,6 +260,17 @@ int brainHost(int sock) {
   int unstuck = 0;
   int unstuckCounter = 0;
 
+  tensorflow::Tensor image_string(tensorflow::DT_UINT8,
+      tensorflow::TensorShape({frameHeight, frameWidth, depth}));
+  tensorflow::Output image_expand = tensorflow::ops::ExpandDims(root, image_string, -1);
+  tensorflow::Output image_resized = tensorflow::ops::CropAndResize(root,
+      image_expand, {{0.0f, 0.0f, 1.0f, 1.0f}}, {0}, {227, 227});
+  tensorflow::Output image_float = tensorflow::ops::Cast(root, image_resized,
+      tensorflow::DT_FLOAT);  
+  tensorflow::Output image_norm = tensorflow::ops::Subtract(root, image_float,
+      {123.68f, 116.779f, 103.939f});
+  tensorflow::Output image_bgr = tensorflow::ops::Reverse(root, image_norm, {-1});
+
   while (true) {
     //std::cout << "tick" << std::endl;
 
@@ -293,8 +308,8 @@ int brainHost(int sock) {
     while(pos < frameSize - 1) {
       int bytes = read(client, buffer, MAXBUF);
       if (bytes < 0) {
-	std::cout << "Error reading frame " << bytes << std::endl;
-	throw std::runtime_error("Error: " + std::string(strerror(errno)));
+        std::cout << "Error reading frame " << bytes << std::endl;
+        throw std::runtime_error("Error: " + std::string(strerror(errno)));
       }
 
       // Write data to file
@@ -316,76 +331,28 @@ int brainHost(int sock) {
       std::cout << "Wrong frame size " << pos << std::endl;
     } else {
 
+      // Copy frame into image input tensor
+      auto image_flat = image_string.flat<uint8_t>();
+      std::copy_n(frame, frameHeight * frameWidth * depth, image_flat.data());
 
-      cv::Mat image = cv::Mat(frameHeight, frameWidth, CV_8UC3, frame);
-      cv::Mat imageFloat;
-      image.convertTo(imageFloat, CV_32FC3);
-      // TODO double check the offset
-      cv::Mat resized = imageFloat(cv::Rect(46, 6, 227, 227));
+      // Process the image
+      session.Run({image_bgr}, &image_outputs);
+      tensorflow::Tensor x = image_outputs[0];
 
-      cv::Mat normalized;
-      cv::subtract(resized, cv::Scalar(123.68, 116.779, 103.939), normalized);
-
-      std::cout << normalized.cols << std::endl;
-      std::cout << normalized.rows << std::endl;
-
-      cv::cvtColor(normalized, normalized, CV_RGB2BGR);
-
-      /* This operation will write the separate BGR planes directly to the
-       * input layer of the network because it is wrapped by the cv::Mat
-       * objects in input_channels. */
-      cv::split(normalized, input_channels);
-
-      std::chrono::time_point<std::chrono::steady_clock> netprepTime = std::chrono::steady_clock::now();
-
-      tensorflow::Tensor x(tensorflow::DT_FLOAT, tensorflow::TensorShape({1, height, width, depth}));
-      auto x_mapped = x.tensor<float, 4>();
-
-      // TODO iterator input_channels and write to x_mapped
-			int depth = 0;
-			std::vector<cv::Mat>::iterator it;
-			for (it = input_channels.begin() ; it != input_channels.end(); ++it) {
-				const float* source_data = (*it).data;
-				for (int y = 0; y < height; ++y) {
-					const float* source_row = source_data + (y * width);
-					for (int x = 0; x < width; ++x) {
-						const float* source_pixel = source_row + x; 
-						x_mapped(0, y, x, depth) = *source_pixel;
-					}
-				}
-
-				depth++;
-			}
-
-      const std::vector<std::pair<std::string, tensorflow::Tensor>> inputs = {{"x", x}};
-      const std::vector<std::string> outputNames = {"score"};
-      const std::vector<std::string> nodeNames = {"score"};
+      // Run prediction using processed image tensor as input
+      const std::vector<std::pair<std::string, tensorflow::Tensor>> inputs = {{"placeholder:0", x}, {"placeholder_2", keepProb}};
+      const std::vector<std::string> outputNames = {"argmax:0"};
+      const std::vector<std::string> nodeNames = {};
       std::vector<tensorflow::Tensor> outputs;
+
       tensorflow::Status s = bundle.session->Run(inputs, outputNames, nodeNames, &outputs);
+      std::cout << s.ToString() << std::endl;
 
-      //net->Forward();
+      std::cout << outputs[0].DebugString() << std::endl;
 
-      // Get predictions
-      //caffe::Blob<float>* output_layer = net->output_blobs()[0];
-      //const float* begin = output_layer->cpu_data();
-      //const float* end = begin + output_layer->channels();
-      //std::vector<float> predictions(begin, end);
-
-      /* Print the top N predictions. */
+      // Process prediction
       float best = 0.0f;
       int bestLabel = 0;
-      /*
-      for (size_t i = 0; i < predictions.size(); ++i) {
-      	if (predictions[i] > best) {
-      	  best = predictions[i];
-      	  bestLabel = i;
-	      }
-
-	      //std::cout << i << ": " << std::fixed << std::setprecision(4) << predictions[i] << std::endl;
-      }
-      */
-
-      // std::cout << "Best: " << bestLabel << " " << std::fixed << std::setprecision(4) << best << std::endl;
 
       switch(bestLabel) {
       case 0:
