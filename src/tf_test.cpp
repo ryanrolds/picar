@@ -76,7 +76,7 @@ int main(int argc, const char** argv) {
 
   std::vector<tensorflow::Tensor> image_outputs;
   tensorflow::ClientSession session(root);
-  session.Run({image_bgr}, &image_outputs);
+  session.Run({image_expand}, &image_outputs);
 
   std::cout << "Post run image" << std::endl;
 

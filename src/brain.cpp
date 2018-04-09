@@ -183,8 +183,6 @@ int brainHost(int sock) {
   //std::string pngFile = "./frame_2017-07-25T21-04-31Z_910.png";
   //std::string pngFile = "../../../picar/test/frame_2017-07-25T16-30-00Z_0.png";
   
-  
-  std::vector<tensorflow::Tensor> image_outputs;
   tensorflow::ClientSession session(root);
 
   std::cout << "Accepting connection..." << std::endl;
@@ -196,8 +194,6 @@ int brainHost(int sock) {
 
   char buffer[MAXBUF];
   memset(buffer, 0, MAXBUF);
-
-
 
   // Handshake
   int bytes = read(client, buffer, MAXBUF);
@@ -262,7 +258,7 @@ int brainHost(int sock) {
 
   tensorflow::Tensor image_string(tensorflow::DT_UINT8,
       tensorflow::TensorShape({frameHeight, frameWidth, depth}));
-  tensorflow::Output image_expand = tensorflow::ops::ExpandDims(root, image_string, -1);
+  tensorflow::Output image_expand = tensorflow::ops::ExpandDims(root, image_string, 0);
   tensorflow::Output image_resized = tensorflow::ops::CropAndResize(root,
       image_expand, {{0.0f, 0.0f, 1.0f, 1.0f}}, {0}, {227, 227});
   tensorflow::Output image_float = tensorflow::ops::Cast(root, image_resized,
@@ -331,67 +327,81 @@ int brainHost(int sock) {
       std::cout << "Wrong frame size " << pos << std::endl;
     } else {
 
+
+      tensorflow::Tensor image_string(tensorflow::DT_UINT8,
+          tensorflow::TensorShape({frameHeight, frameWidth, depth}));
+
+      
+      std::vector<tensorflow::Tensor> image_outputs;
+
       // Copy frame into image input tensor
       auto image_flat = image_string.flat<uint8_t>();
       std::copy_n(frame, frameHeight * frameWidth * depth, image_flat.data());
+
+      std::cout << frame[0] << " " << frame[1] << " " << frame[2] << std::endl;
+      std::cout << "Input " << image_string.DebugString() << std::endl;
+      std::cout << image_string.SummarizeValue(9) << std::endl;
+
+      tensorflow::Output image_expand = tensorflow::ops::ExpandDims(root, image_string, 0);
+      tensorflow::Output image_resized = tensorflow::ops::CropAndResize(root,
+          image_expand, {{0.0f, 0.0f, 1.0f, 1.0f}}, {0}, {227, 227});
+      tensorflow::Output image_float = tensorflow::ops::Cast(root, image_resized,
+          tensorflow::DT_FLOAT);  
+      tensorflow::Output image_norm = tensorflow::ops::Subtract(root, image_float,
+          {123.68f, 116.779f, 103.939f});
+      tensorflow::Output image_bgr = tensorflow::ops::Reverse(root, image_norm, {-1});
+
+      // Debug output to work out issue with ops
+      session.Run({image_expand}, &image_outputs);
+      std::cout << "Debug " <<  image_outputs[0].DebugString() << std::endl;
+      std::cout << image_outputs[0].SummarizeValue(9) << std::endl;
 
       // Process the image
       session.Run({image_bgr}, &image_outputs);
       tensorflow::Tensor x = image_outputs[0];
 
+      std::cout << x.DebugString() << std::endl;
+
       // Run prediction using processed image tensor as input
-      const std::vector<std::pair<std::string, tensorflow::Tensor>> inputs = {{"placeholder:0", x}, {"placeholder_2", keepProb}};
-      const std::vector<std::string> outputNames = {"argmax:0"};
+      const std::vector<std::pair<std::string, tensorflow::Tensor>> inputs = {{"Placeholder:0", x}, {"Placeholder_2", keepProb}};
+      const std::vector<std::string> outputNames = {"ArgMax:0"};
       const std::vector<std::string> nodeNames = {};
       std::vector<tensorflow::Tensor> outputs;
 
       tensorflow::Status s = bundle.session->Run(inputs, outputNames, nodeNames, &outputs);
-      std::cout << s.ToString() << std::endl;
 
+      std::cout << s.ToString() << std::endl; 
       std::cout << outputs[0].DebugString() << std::endl;
 
       // Process prediction
-      float best = 0.0f;
-      int bestLabel = 0;
+      int64_t bestLabel = 0;
+      bestLabel = outputs[0].vec<tensorflow::int64>()(0);
+
+      std::cout << bestLabel << std::endl;
 
       switch(bestLabel) {
       case 0:
-      case 1:
-      case 7:
       	buffer[0] = 0; // Center
 	      buffer[1] = 1; // Back
-	      break;
-	    //case 1:
-	      //buffer[0] = 128; // Left
-	      //buffer[1] = 1; // Back
-	      //break;
-      case 2:
+      case 1:
 	      buffer[0] = -127; // Right
 	      buffer[1] = 128; // Forward
 	      break;
-      case 3:
+      case 2:
 	      buffer[0] = -63; // Slight right
 	      buffer[1] = 128; // Forward
 	      break;
-      case 4:
+      case 3:
       	buffer[0] = 0; // Center
       	buffer[1] = 128; // Forward
-      	break;
-      case 5:
+	      break;
+      case 4:
       	buffer[0] = 64; // Slight Left
       	buffer[1] = 128; // Forward
       	break;
-      case 6:
+      case 5:
       	buffer[0] = 128; // Left
       	buffer[1] = 128; // Forward
-      	break;
-    	//case 7:
-      	//buffer[0] = -127; // Right
-      	//buffer[1] = 1; // Backward
-      	//break;
-      case 8:
-      	buffer[0] = 0; // Center
-      	buffer[1] = 1; // Back
       	break;
       default:
       	throw std::runtime_error("Invalid class");
@@ -414,7 +424,8 @@ int brainHost(int sock) {
 	
       	unstuck -= 1;
       }
-
+  
+      /*
       if (counter < 5) {
       	buffer[0] = 0;
       	buffer[1] = 128;
@@ -437,6 +448,7 @@ int brainHost(int sock) {
       	buffer[0] = -127;
       	buffer[1] = 0;
       }
+      */
     }
     
     // Send command
@@ -474,7 +486,7 @@ void writeFrame(char* frame, unsigned int frameSize, unsigned int frameWidth, un
 
   // Write complete frame to disk
   std::string frameFilename;
-  frameFilename += "/home/ryan/frames/frame_";
+  frameFilename += "./frames/";
   frameFilename += buf;
   frameFilename += "_" + std::to_string(counter);
   frameFilename += ".ppm";
