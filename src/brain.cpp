@@ -22,6 +22,7 @@
 #include <netdb.h>
 #include <unistd.h>
 
+#include <opencv2/opencv.hpp>
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/public/session.h"
 #include "tensorflow/cc/client/client_session.h"
@@ -151,7 +152,6 @@ int discoveryHost() {
 }
 
 void setupNet(tensorflow::SavedModelBundle& bundle) {
-  // Setup graph
   const std::string exportDir = "./models";
   tensorflow::SessionOptions sessOpts = tensorflow::SessionOptions();
   tensorflow::RunOptions runOpts = tensorflow::RunOptions();
@@ -164,31 +164,15 @@ void setupNet(tensorflow::SavedModelBundle& bundle) {
     std::cout << "Error " << opStatus.ToString() << "\n";
     throw std::runtime_error(opStatus.ToString());
   }
-
-  //tensorflow::LoadGraph("./graph.pb", session)
-
-  /*
-  tensorflow::Session* session;
-  tensorflow::Status status = tensorflow::NewSession(tensorflow::SessionOptions(), &session);
-  if (!status.ok()) {
-    std::cout << status.ToString() << std::endl;
-    throw std::runtime_error("Error: " + status.ToString());
-  }
-
-  tensorflow::GraphDef graphDef;
-  status = tensorflow::ReadBinaryProto(tensorflow::Env::Default(), "", &graphDef);
-  if (!status.ok()) {
-    std::cout << status.ToString() << std::endl;
-    throw std::runtime_error("Error: " + status.ToString());
-  }
-
-  return session;
-  */
 }
 
 int brainHost(int sock) {
   struct sockaddr_in client_addr;
   memset(&client_addr, 0, sinlen);
+
+	const int height = 227;
+	const int width = 227;
+	const int depth = 3;
 
   std::cout << "Preparing net..." << std::endl;
 
@@ -340,7 +324,7 @@ int brainHost(int sock) {
       cv::Mat resized = imageFloat(cv::Rect(46, 6, 227, 227));
 
       cv::Mat normalized;
-      cv::subtract(resized, mean, normalized);
+      cv::subtract(resized, cv::Scalar(123.68, 116.779, 103.939), normalized);
 
       std::cout << normalized.cols << std::endl;
       std::cout << normalized.rows << std::endl;
@@ -354,11 +338,24 @@ int brainHost(int sock) {
 
       std::chrono::time_point<std::chrono::steady_clock> netprepTime = std::chrono::steady_clock::now();
 
-
-      auto x(tensorflow::DT_FLOAT, tensorflow::TensorShape({1, 227, 227, 3}));
+      tensorflow::Tensor x(tensorflow::DT_FLOAT, tensorflow::TensorShape({1, height, width, depth}));
       auto x_mapped = x.tensor<float, 4>();
 
       // TODO iterator input_channels and write to x_mapped
+			int depth = 0;
+			std::vector<cv::Mat>::iterator it;
+			for (it = input_channels.begin() ; it != input_channels.end(); ++it) {
+				const float* source_data = (*it).data;
+				for (int y = 0; y < height; ++y) {
+					const float* source_row = source_data + (y * width);
+					for (int x = 0; x < width; ++x) {
+						const float* source_pixel = source_row + x; 
+						x_mapped(0, y, x, depth) = *source_pixel;
+					}
+				}
+
+				depth++;
+			}
 
       const std::vector<std::pair<std::string, tensorflow::Tensor>> inputs = {{"x", x}};
       const std::vector<std::string> outputNames = {"score"};
