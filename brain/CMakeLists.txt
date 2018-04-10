@@ -35,9 +35,9 @@ add_definitions(-DCPU_ONLY)
 #configure_file(share/v4/net.weights share/net.weights COPYONLY)
 #configure_file(share/v4/net.avg share/net.avg COPYONLY)
 
-find_package(OpenCV REQUIRED)
-find_package(raspicam REQUIRED)
-#find_package(Caffe2 REQUIRED)
+#find_package(OpenCV REQUIRED)
+#find_package(raspicam REQUIRED)
+#find_package(Caffe3 REQUIRED)
 find_package(CUDA QUIET REQUIRED)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
@@ -46,19 +46,6 @@ target_link_libraries(picar-brain pthread protoc cudnn tensorflow_framework tens
 
 cuda_add_executable(tf_test src/tf_test.cpp)
 target_link_libraries(tf_test protoc cudnn tensorflow_framework tensorflow_cc boost_system glog Eigen3::Eigen ${OpenCV_LIBS}) 
-
-add_executable(picar-car src/car.cpp src/control.cpp src/senses.cpp)
-target_link_libraries(picar-car pthread wiringPi ${raspicam_LIBS})
-
-add_executable(lidar-test src/lidar.cpp)
-target_link_libraries(lidar-test pthread bcm2835)
-
-# Old, switching to Cafee - here for reference
-#find_package(OpenCV REQUIRED)
-
-# Old, pre car+brain refactor - here for reference
-#add_executable(picar src/main.cpp src/detect.cpp src/control.cpp src/senses.cpp)
-#target_link_libraries(picar pthread wiringPi ${OpenCV_LIBS} ${raspicam_CV_LIBS})
 
 install(TARGETS picar-brain picar-car DESTINATION bin)
 install(PROGRAMS scripts/picar-car.pre DESTINATION bin)
