@@ -32,7 +32,7 @@ Raspberry Pi + Tensorflow driven car. The goal is to use a ConvNet to drive the 
 
 ### TODO
 
-* Move brin and car from lock-step to multi-threaded
+* Move brain and car from lock-step to multi-threaded
 * Update classifiaction program to highlight images with obst.
 * Intergrator Lidar module
 * Create behavior tree (car)
