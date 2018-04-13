@@ -1,6 +1,6 @@
 # Cat Chasing Pi Car
 
-Raspberry Pi + OpenCV driven car. Uses cascades trainned in cat detection to follow a house cat.
+Raspberry Pi + Tensorflow driven car. The goal is to use a ConvNet to drive the car around my house and chase our cats.
 
 > Note this is a work in progress and is often broken. A v1.0, or any version then 0.0.1, has yet to be released or tagged.
 
