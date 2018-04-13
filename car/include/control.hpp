@@ -1,3 +1,5 @@
+#pragma once
+
 #include <linux/i2c-dev.h>
 #include <wiringPi.h>
 
@@ -14,3 +16,7 @@ const __u16 STEERING_MAX = 415;
 const __u16 STEERING_CEN = 350;
 
 // 285 (65) 355 (65) 415
+
+struct Command {
+
+};

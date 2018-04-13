@@ -35,7 +35,7 @@ find_package(raspicam REQUIRED)
 #find_package(CUDA QUIET REQUIRED)
 #find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
-add_executable(picar-car src/car.cpp src/control.cpp src/senses.cpp)
+add_executable(picar-car src/car.cpp src/control.cpp src/senses.cpp src/frame.cpp src/camera.cpp)
 target_link_libraries(picar-car pthread wiringPi ${raspicam_LIBS})
 
 add_executable(lidar-test src/lidar.cpp)

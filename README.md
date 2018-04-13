@@ -2,6 +2,8 @@
 
 Raspberry Pi + OpenCV driven car. Uses cascades trainned in cat detection to follow a house cat.
 
+> Note this is a work in progress and is often broken. A v1.0, or any version then 0.0.1, has yet to be released or tagged.
+
 ## Parts
 
 * Raspberry Pi 3
@@ -11,8 +13,6 @@ Raspberry Pi + OpenCV driven car. Uses cascades trainned in cat detection to fol
 * IR Sensor mount (see models)
 
 ## Status
-
-At this time 
 
 ### Complete
 
@@ -27,13 +27,14 @@ At this time
 * Car being driven by CNN
 * Repair IR Obst. and save sensor data in image
 * Get 10k frames classified
+* Try taking AlexNet weights, cutting off unneded output layer nodes, freezing all layers but the output layer and retrain
+* Switch to TensorFlow
 
 ### TODO
 
-* Try taking AlexNet weights, cutting off unneded output layer nodes, freezing all layers but the output layer and retrain
-* Intergrator Lidar module
-* Switch to Caffe2
+* Move brin and car from lock-step to multi-threaded
 * Update classifiaction program to highlight images with obst.
+* Intergrator Lidar module
 * Create behavior tree (car)
 
 ## Setup
@@ -49,9 +50,18 @@ Dependencies:
 
 ### cmake
 
+Brain:
+
     $ mkdir build
     $ cd build
-    $ cmake ..
+    $ cmake ../brain
+    $ make
+
+Car: 
+
+    $ mkdir build
+    $ cd build
+    $ cmake ../car
     $ make  
 
 ### Old
@@ -97,3 +107,5 @@ Program uses i2c (2, 3) and OUPUT on 17, 27, 23, 24
     $ gpio export 22 INPUT
 
 ## Training
+
+Jupyter Notebooks are found in `scripts`.
